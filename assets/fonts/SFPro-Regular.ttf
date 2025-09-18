@@ -1,0 +1,7 @@
+import { useFonts } from 'expo-font';
+
+const [fontsLoaded] = useFonts({
+  Montserrat_400Regular,
+  BebasNeue_400Regular,
+  SFPro: require('../../assets/fonts/SFPro-Regular.ttf'), // 👈 Add this
+});
