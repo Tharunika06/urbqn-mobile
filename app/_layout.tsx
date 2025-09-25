@@ -17,11 +17,12 @@ import {
   Montserrat_700Bold,
   Montserrat_800ExtraBold,
 } from '@expo-google-fonts/montserrat';
-import { FavoritesProvider } from '../components/context/FavoriteContext';
+// Import the FavoritesProvider
+import { FavoritesProvider } from '../components/context/FavoriteContext'; 
+
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Rse2K3IbV3tDsovgiLaWx92RBz8FguswSyQXKmgpxl7x79yqbY7KJsSo41NQY6MOLZWstyrKKAx5AGraZIYpQ6t00mpIqWZRC'; 
 
 export default function RootLayout() {
-  
   const [fontsLoaded] = useFonts({
     BebasNeue_400Regular,
     Prompt_700Bold,
@@ -30,6 +31,7 @@ export default function RootLayout() {
     Montserrat_700Bold,
     Montserrat_800ExtraBold,
   });
+
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
       await SplashScreen.hideAsync();
@@ -41,17 +43,18 @@ export default function RootLayout() {
   }
 
   return (
-        <FavoritesProvider>
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
-        <View onLayout={onLayoutRootView} style={{ flex: 1 }}>
-          <Stack
-            initialRouteName="auth/splash/index"
-            screenOptions={{ headerShown: false }}
-          />
-        </View>
-      </StripeProvider>
-    </GestureHandlerRootView>
+    // Wrap the entire component tree with FavoritesProvider
+    <FavoritesProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+          <View onLayout={onLayoutRootView} style={{ flex: 1 }}>
+            <Stack
+              initialRouteName="auth/splash/index"
+              screenOptions={{ headerShown: false }}
+            />
+          </View>
+        </StripeProvider>
+      </GestureHandlerRootView>
     </FavoritesProvider>
   );
 }

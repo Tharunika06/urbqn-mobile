@@ -97,12 +97,12 @@ export default function Home() {
     { id: 4, name: 'Semarang', image: require('../../assets/images/loc4.png') },
   ];
 
-  // const agentData = [
-  //   { id: 1, name: 'Amanda', image: require('../../assets/images/agent1.png') },
-  //   { id: 2, name: 'Jordan', image: require('../../assets/images/agent2.png') },
-  //   { id: 3, name: 'Samantha', image: require('../../assets/images/agent3.png') },
-  //   { id: 4, name: 'Jackson', image: require('../../assets/images/agent4.png') },
-  // ];
+  const agentData = [
+    { id: 1, name: 'Amanda', image: require('../../assets/images/agent1.png') },
+    { id: 2, name: 'Jordan', image: require('../../assets/images/agent2.png') },
+    { id: 3, name: 'Samantha', image: require('../../assets/images/agent3.png') },
+    { id: 4, name: 'Jackson', image: require('../../assets/images/agent4.png') },
+  ];
 
   return (
     <View style={styles.screen}>

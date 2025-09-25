@@ -30,6 +30,7 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
     Montserrat_400Regular,
   });
 
+  
   if (!fontsLoaded) return null;
 
   const handleSendOTP = async () => {

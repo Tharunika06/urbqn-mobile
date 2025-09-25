@@ -126,7 +126,7 @@ export default function VerificationScreen({
           ))}
         </View>
 
-\                     <GradientButton
+<GradientButton
   onPress={() => handleVerify()}
   label="Continue"
   colors={['#000000', '#474747']}

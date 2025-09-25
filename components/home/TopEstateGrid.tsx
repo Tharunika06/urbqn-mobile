@@ -1,5 +1,5 @@
 // Updated TopEstateGrid.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ type Property = {
 
 type Props = {
   properties: Property[];
+  favorites: (string | number)[];
+  toggleFavorite: (id: string | number) => void;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -41,10 +43,32 @@ export default function TopEstateGrid({ properties }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const { favorites, toggleFavorite } = useFavorites();
 
-  // Helper function to dynamically render the correct price label
+  const [showAll, setShowAll] = useState(false);  // Track if all properties should be shown
+
+  // Function to get the correct image source
+  const getImageSrc = (photo: string | any) => {
+    if (photo && typeof photo === 'string' && photo.startsWith('data:image/')) {
+      return { uri: photo };
+    }
+    if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
+      return { uri: `http://192.168.0.152:5000${photo}` };
+    }
+    if (photo && typeof photo === 'string' && photo.startsWith('http')) {
+      return { uri: photo };
+    }
+    if (photo && typeof photo === 'object') {
+      return photo;
+    }
+    return require('../../assets/images/placeholder.png'); // Fallback placeholder
+  };
+
+  // Helper function to render the correct price label
   const renderPriceLabel = (property: Property) => {
     const status = property.status?.toLowerCase();
 
+    if (status === 'both' && property.rentPrice && property.salePrice) {
+      return <Text style={styles.priceText}>₹{property.salePrice}</Text>;
+    }
     if (status === 'rent' && property.rentPrice) {
       return (
         <Text style={styles.priceText}>
@@ -56,35 +80,27 @@ export default function TopEstateGrid({ properties }: Props) {
     if (status === 'sale' && property.salePrice) {
       return <Text style={styles.priceText}>₹{property.salePrice}</Text>;
     }
-    if (status === 'both' && property.salePrice) {
-      return <Text style={styles.priceText}>₹{property.salePrice}</Text>;
-    }
     if (property.price) {
       return <Text style={styles.priceText}>₹{property.price}</Text>;
     }
-    return null;
+    return <Text style={styles.priceText}>N/A</Text>;
   };
 
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.title}>Top Estates</Text>
-        <Text style={styles.seeAll}>See all</Text>
+        <TouchableOpacity onPress={() => setShowAll(!showAll)}>
+          <Text style={styles.seeAll}>{showAll ? 'See less' : 'See all'}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.grid}>
-        {properties.map((property, index) => {
+        {(showAll ? properties : properties.slice(0, 4)).map((property, index) => {
           const safeId = property.id ?? property._id ?? index;
           const isFavorited = favorites.includes(safeId);
 
-          const imageSource =
-            typeof property.photo === 'string'
-              ? {
-                  uri: property.photo.startsWith('http')
-                    ? property.photo
-                    : `http://192.168.0.152:5000${property.photo}`,
-                }
-              : property.photo;
+          const imageSource = getImageSrc(property.photo);
 
           return (
             <TouchableOpacity
@@ -104,26 +120,26 @@ export default function TopEstateGrid({ properties }: Props) {
               }}
             >
               <View style={styles.imageWrap}>
-                <Image source={imageSource} style={styles.image} />
+                <Image
+                  source={imageSource}
+                  style={styles.image}
+                  onError={() => {
+                    console.warn('Failed to load property image for:', property.name);
+                  }}
+                  defaultSource={require('../../assets/images/placeholder.png')}
+                />
                 <TouchableOpacity
                   onPress={() => toggleFavorite(property)}
-                  style={[
-                    styles.favoriteBtn,
-                    { backgroundColor: isFavorited ? '#ef4444' : '#fff' },
-                  ]}
+                  style={[styles.favoriteBtn, { backgroundColor: isFavorited ? '#ef4444' : '#fff' }]}
                 >
-                  <Ionicons
-                    name="heart"
-                    size={16}
-                    color={isFavorited ? '#fff' : '#ef4444'}
-                  />
+                  <Ionicons name="heart" size={16} color={isFavorited ? '#fff' : '#ef4444'} />
                 </TouchableOpacity>
                 <View style={styles.priceTag}>
                   <GradientButton
                     onPress={() => {}}
                     colors={['#0075FF', '#4C9FFF']}
                     label={renderPriceLabel(property)}
-                    buttonStyle={{ 
+                    buttonStyle={{
                       width: 'auto',
                       minWidth: 90,
                       height: 35,
@@ -134,17 +150,16 @@ export default function TopEstateGrid({ properties }: Props) {
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
-                  />                
-                </View> 
+                  />
+                </View>
               </View>
               <Text style={styles.propertyTitle} numberOfLines={1}>{property.name}</Text>
               <Text style={styles.propertyMeta}>
                 <Text>
-                  <Text style={{ color: '#ffc107'}}>★ </Text>
+                  <Text style={{ color: '#ffc107' }}>★ </Text>
                   <Text style={{ color: '#53587A' }}>{property.rating || '4.9'}</Text>
                 </Text>
-
-                <Ionicons name="location-sharp" size={12} color="#858585" style={{marginLeft: 8}} />{' '}
+                <Ionicons name="location-sharp" size={12} color="#858585" style={{ marginLeft: 8 }} />
                 <Text style={styles.locationText}>{property.country}</Text>
               </Text>
             </TouchableOpacity>

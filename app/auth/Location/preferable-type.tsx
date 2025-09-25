@@ -86,7 +86,7 @@ export default function PreferableType() {
       />
 
       {/* Next Button */}
-      <TouchableOpacity style={styles.nextButton} onPress={() => router.push('/auth/LoginScreen')}>
+      <TouchableOpacity style={styles.nextButton} onPress={() => router.push('/(tabs)/Profile')}>
         <Text style={styles.nextButtonText}>Next</Text>
       </TouchableOpacity>
     </SafeAreaView>

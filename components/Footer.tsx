@@ -1,28 +1,54 @@
-// components/Footer.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 
 export default function Footer() {
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Step 1: Manage the active tab state
+  const [activeTab, setActiveTab] = useState<string>('');
+
+  // Step 2: Update active tab based on the current pathname
+  useEffect(() => {
+    if (pathname.includes('Home')) {
+      setActiveTab('home');
+    } else if (pathname.includes('Favorites')) {
+      setActiveTab('favorites');
+    } else if (pathname.includes('Location')) {
+      setActiveTab('location');
+    }
+  }, [pathname]);
 
   return (
     <View style={styles.footerNav}>
-      <TouchableOpacity onPress={() => router.push('/(tabs)/Home')}>
+      {/* Home Tab */}
+      <TouchableOpacity
+        onPress={() => {
+          setActiveTab('home'); // Update active tab
+          router.push('/(tabs)/Home');
+        }}
+      >
         <Image
-          source={require('../assets/icons/nav-home.png')}
+          source={activeTab === 'home' ? require('../assets/icons/nav-home-active.png') : require('../assets/icons/nav-home.png')}
           style={styles.navIcon}
         />
       </TouchableOpacity>
 
+      {/* Location Tab */}
       <TouchableOpacity>
                <Image source={require('../assets/icons/nav-location.png')} style={styles.navIcon} />
              </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push('/auth/Favorites')}>
+      {/* Favorites Tab */}
+      <TouchableOpacity
+        onPress={() => {
+          setActiveTab('favorites'); // Update active tab
+          router.push('/auth/Favorites');
+        }}
+      >
         <Image
-          source={require('../assets/icons/nav-heart.png')}
+          source={activeTab === 'favorites' ? require('../assets/icons/nav-heart-active.png') : require('../assets/icons/nav-heart.png')}
           style={styles.navIcon}
         />
       </TouchableOpacity>
@@ -36,7 +62,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 100,
+    height: 120,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -50,8 +76,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   navIcon: {
-    width: 26,
-    height: 26,
+    width: 30,
+    height: 30,
+    bottom:15,
     resizeMode: 'contain',
     alignItems: 'center',
   },

@@ -1,20 +1,39 @@
 // app/auth/Favorites/index.tsx
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import EmptyFavorites from './FavoriteEmpty';
 import FavoritesListView from './FavoritesListView';
 import FavoritesGridView from './FavoritesGridView';
 import { useFavorites } from '../../../components/context/FavoriteContext';
+import Footer from '../../../components/Footer';
 
 export default function Favorites() {
   const navigation = useNavigation();
-  const { favoriteProperties, removeFavorite } = useFavorites();
+  const { favoriteProperties, removeFavorite, isLoading, loadFavorites } = useFavorites();
   
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh favorites when component mounts or becomes focused
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('Favorites screen focused, loading favorites...');
+      loadFavorites();
+    });
+
+    return unsubscribe;
+  }, [navigation, loadFavorites]);
 
   const handleDelete = (id: string | number) => {
+    console.log('Deleting favorite with id:', id);
     removeFavorite(id);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadFavorites();
+    setRefreshing(false);
   };
 
   const icons = {
@@ -33,7 +52,7 @@ export default function Favorites() {
           <Image source={icons.backArrow} style={styles.icon} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.iconCircle}>
+        <TouchableOpacity style={styles.iconCircle} onPress={handleRefresh}>
           <Image source={icons.moreDots} style={styles.icon} />
         </TouchableOpacity>
       </View>
@@ -44,15 +63,16 @@ export default function Favorites() {
         </Text>
 
         <View style={styles.viewDisplay}>
-          <TouchableOpacity onPress={() => setViewMode('grid')}>
-            <Image
-              source={viewMode === 'grid' ? icons.gridActive : icons.gridInactive}
-              style={styles.viewIcon}
-            />
-          </TouchableOpacity>
+      
           <TouchableOpacity onPress={() => setViewMode('list')}>
             <Image
               source={viewMode === 'list' ? icons.listActive : icons.listInactive}
+              style={styles.viewIcon}
+            />
+          </TouchableOpacity>
+              <TouchableOpacity onPress={() => setViewMode('grid')}>
+            <Image
+              source={viewMode === 'grid' ? icons.gridActive : icons.gridInactive}
               style={styles.viewIcon}
             />
           </TouchableOpacity>
@@ -61,22 +81,80 @@ export default function Favorites() {
     </View>
   );
 
-  if (favoriteProperties.length === 0) return <EmptyFavorites />;
+  // Show loading spinner while initial load
+  if (isLoading && favoriteProperties.length === 0) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        {renderHeader()}
+        <View style={styles.loadingContent}>
+          <ActivityIndicator size="large" color="#1a73e8" />
+          <Text style={styles.loadingText}>Loading favorites...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show empty state if no favorites
+  if (favoriteProperties.length === 0) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
+        <EmptyFavorites />
+        <Footer />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {renderHeader()}
+      {refreshing && (
+        <View style={styles.refreshingIndicator}>
+          <ActivityIndicator size="small" color="#1a73e8" />
+          <Text style={styles.refreshingText}>Refreshing...</Text>
+        </View>
+      )}
       {viewMode === 'list' ? (
         <FavoritesListView favorites={favoriteProperties} onDelete={handleDelete} />
       ) : (
         <FavoritesGridView favorites={favoriteProperties} onDelete={handleDelete} />
       )}
+      <Footer />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff' 
+  },
+  loadingContainer: {
+    justifyContent: 'flex-start',
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  refreshingIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  refreshingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+  },
   headerWrapper: {
     marginTop: 50,
     paddingHorizontal: 20,

@@ -1,3 +1,4 @@
+// urban/app/auth/Estate/EstateDetails.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -7,22 +8,20 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   StatusBar,
   Alert,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { RootStackParamList } from '../../../types/navigation';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useFavorites } from '../../../components/context/FavoriteContext';
+import TransactionHandler from './TransactionHandler';
 
 const mapPreview = require('../../../assets/images/map.png');
 const thumb3 = require('../../../assets/images/thumb3.png');
@@ -42,9 +41,8 @@ const API_BASE_URL = 'http://192.168.0.152:5000';
 
 type EstateDetailsRouteProp = RouteProp<RootStackParamList, 'auth/Estate/EstateDetails'>;
 
-// Review interface
 interface Review {
-  _id: string;
+  _id: string | number;
   propertyId: string;
   customerName: string;
   rating: number;
@@ -58,20 +56,33 @@ export default function EstateDetails() {
   const { property } = route.params;
   const router = useRouter();
 
-  const [isFavorite, setIsFavorite] = useState(false);
+  // Use the global favorites context instead of local state
+  const { favorites, toggleFavorite } = useFavorites();
   const [displayMode, setDisplayMode] = useState<'rent' | 'sale' | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  const [showUserInfoModal, setShowUserInfoModal] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [userPhone, setUserPhone] = useState('');
-
-  // Review states
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
 
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  // Check if current property is favorited - Fix: Use _id instead of id
+  const propertyId = property._id ?? property.name;
+  const isFavorite = favorites.includes(String(propertyId)); // Convert to string for consistency
+
+  // Function to get the correct image source (same as TopEstateGrid)
+  const getImageSrc = (photo: string | any) => {
+    if (photo && typeof photo === 'string' && photo.startsWith('data:image/')) {
+      return { uri: photo };
+    }
+    if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
+      return { uri: `${API_BASE_URL}${photo}` };
+    }
+    if (photo && typeof photo === 'string' && photo.startsWith('http')) {
+      return { uri: photo };
+    }
+    if (photo && typeof photo === 'object') {
+      return photo;
+    }
+    return require('../../../assets/images/placeholder.png'); // Fallback placeholder
+  };
 
   useEffect(() => {
     const initialMode = property.status?.toLowerCase();
@@ -85,7 +96,6 @@ export default function EstateDetails() {
       }
     }
 
-    // Fetch reviews when component mounts
     fetchReviews();
   }, [property]);
 
@@ -99,7 +109,6 @@ export default function EstateDetails() {
         const reviewData = await response.json();
         setReviews(reviewData);
         
-        // Calculate average rating
         if (reviewData.length > 0) {
           const totalRating = reviewData.reduce((sum: number, review: Review) => sum + review.rating, 0);
           setAverageRating(totalRating / reviewData.length);
@@ -151,134 +160,6 @@ export default function EstateDetails() {
     return stars;
   };
 
-  const handleBuyRentClick = () => {
-    if (!displayMode) return;
-    setShowUserInfoModal(true);
-  };
-
-  const handleProceedToPayment = () => {
-    if (!userName.trim()) {
-      Alert.alert('Validation Error', 'Please enter your name.');
-      return;
-    }
-    if (!userPhone.trim() || userPhone.trim().length < 10) {
-      Alert.alert('Validation Error', 'Please enter a valid 10-digit phone number.');
-      return;
-    }
-
-    setShowUserInfoModal(false);
-    handlePayment();
-  };
-
-  const handlePayment = async () => {
-    if (!displayMode || isProcessing) return;
-    setIsProcessing(true);
-
-    const price = displayMode === 'rent' ? parsePrice(property.rentPrice) : parsePrice(property.salePrice);
-    if (!price) {
-      Alert.alert('Error', 'Price is not available for this option.');
-      setIsProcessing(false);
-      return;
-    }
-
-    try {
-      // 1. Create a payment intent
-      const response = await fetch(`${API_BASE_URL}/api/payment/create-payment-intent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: price }),
-      });
-      const { clientSecret, error: backendError } = await response.json();
-      if (backendError || !clientSecret) {
-        throw new Error(backendError || 'Failed to get payment client secret from server.');
-      }
-
-      // 2. Initialize the Payment sheet
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: 'RealEstate App Inc.',
-        paymentIntentClientSecret: clientSecret,
-      });
-      if (initError) {
-        throw new Error(`Payment sheet initialization failed: ${initError.message}`);
-      }
-
-      // 3. Present the Payment sheet
-      const { error: paymentError } = await presentPaymentSheet();
-      if (paymentError) {
-        if (paymentError.code !== 'Canceled') {
-          throw new Error(`Payment failed: ${paymentError.message}`);
-        }
-        Alert.alert('Payment Canceled', 'The payment process was not completed.');
-        setIsProcessing(false);
-        return;
-      }
-
-      // 4. Payment succeeded! Save the transaction details.
-      await saveTransactionDetails(clientSecret, price, userName, userPhone);
-
-      Alert.alert(
-        'Payment Successful!',
-        `Your transaction for "${property.name}" was completed. Please take a moment to leave a review.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              if (property._id) {
-                router.push({
-                  pathname: '/auth/Reviews/Review',
-                  params: { propertyId: property._id.toString() },
-                });
-              } else {
-                 console.error("Cannot navigate to reviews: property._id is missing.");
-                 router.back();
-              }
-            },
-          },
-        ]
-      );
-
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert('Payment Error', error.message || 'An unexpected error occurred.');
-    } finally {
-      setIsProcessing(false);
-      setUserName('');
-      setUserPhone('');
-    }
-  };
-
-  const saveTransactionDetails = async (clientSecret: string, amount: number, name: string, phone: string) => {
-    try {
-      if (!property._id) {
-        console.error("Critical Error: Property _id is missing. Cannot save transaction.");
-        Alert.alert("Error", "Could not save transaction because of a data issue.");
-        return;
-      }
-      const transactionDetails = {
-        id: clientSecret.split('_secret')[0], 
-        customerName: name,
-        customerPhone: phone,
-        paymentMethod: 'card',
-        amount: amount,
-        property: { id: property._id, name: property.name },
-        ownerName: property.ownerName,
-      };
-      const response = await fetch(`${API_BASE_URL}/api/payment/save-transaction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionDetails }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Server returned an error: ${response.status}`);
-      }
-      console.log("✅ Transaction details successfully sent to the server.");
-    } catch (error: any) {
-      console.error("Failed to save transaction on server:", error);
-      Alert.alert("Save Error", `Your payment was successful, but we failed to save the transaction record. Please contact support.\n\nDetails: ${error.message}`);
-    }
-  };
-
   const getDisplayData = () => {
     if (displayMode === 'rent') {
       const rentPrice = parsePrice(property.rentPrice);
@@ -293,7 +174,6 @@ export default function EstateDetails() {
     return { statusText: '', priceText: 'Select an option', isValid: false };
   };
 
-  // Handle navigation to map with proper property data
   const handleViewOnMap = () => {
     if (!property) {
       Alert.alert('Error', 'Property data is not available');
@@ -301,7 +181,6 @@ export default function EstateDetails() {
     }
 
     try {
-      // Create a clean property object with required data
       const propertyForMap = {
         _id: property._id,
         name: property.name || 'Property',
@@ -322,8 +201,32 @@ export default function EstateDetails() {
       Alert.alert('Error', 'Failed to prepare property data for map');
     }
   };
+
+  // Fix: Create a handler for toggle favorite that ensures type compatibility
+  // Fix: Create a handler for toggle favorite that ensures type compatibility
+
+  // Create a property object that matches the expected Property type
+  // Fix: Create a handler for toggle favorite that ensures type compatibility
+const handleToggleFavorite = () => {
+  // Create a property object that matches the expected Property type
+  const propertyForFavorites = {
+    ...property,
+_id: String(property._id), // Ensure _id is always a string  // Convert ownerId to string
+ownerId: String(property.ownerId || ''),
+    price: property.price ? String(property.price) : undefined, // Convert price to string
+    country: property.country ?? 'Unknown', // Provide default country if undefined
+    facility: property.facility ?? [],
+    rentPrice: property.rentPrice ? String(property.rentPrice) : undefined, // Convert rentPrice to string
+    salePrice: property.salePrice ? String(property.salePrice) : undefined, // Convert salePrice to string
+    rating: property.rating ?? 0, // Provide default rating of 0 if undefined
+  };
+  toggleFavorite(propertyForFavorites);
+};
   
   const { statusText, priceText, isValid } = getDisplayData();
+
+  // Get the proper image source
+  const imageSource = getImageSrc(property.photo);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -333,8 +236,12 @@ export default function EstateDetails() {
       >
         <View style={styles.imageWrapper}>
           <Image
-            source={ typeof property.photo === 'string' ? { uri: property.photo.startsWith('http') ? property.photo : `${API_BASE_URL}${property.photo}` } : property.photo }
+            source={imageSource}
             style={styles.mainImage}
+            onError={() => {
+              console.warn('Failed to load property image for:', property.name);
+            }}
+            defaultSource={require('../../../assets/images/placeholder.png')}
           />
           <View style={styles.imageTopRow}>
             <TouchableOpacity style={styles.iconCircle} onPress={() => navigation.goBack()}>
@@ -346,7 +253,7 @@ export default function EstateDetails() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconCircle, isFavorite && styles.activeFav]}
-                onPress={() => setIsFavorite((prev) => !prev)}
+                onPress={handleToggleFavorite} // Use the new handler
               >
                 <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={18} color={isFavorite ? '#fff' : '#1a2238'} />
               </TouchableOpacity>
@@ -533,7 +440,6 @@ export default function EstateDetails() {
 
                   {reviews.length > 3 && (
                     <TouchableOpacity style={styles.viewAllReviews} onPress={() => {
-                      // Navigate to all reviews page or expand reviews
                       Alert.alert('All Reviews', `Total ${reviews.length} reviews available`);
                     }}>
                       <Text style={styles.viewAllReviewsText}>View all {reviews.length} reviews</Text>
@@ -549,50 +455,13 @@ export default function EstateDetails() {
           )}
         </View>
 
-        <View style={styles.buyWrapper}>
-            <TouchableOpacity
-                style={[ styles.buyCTA, (!isValid || !displayMode || isProcessing) && { backgroundColor: '#a5a5a5' } ]}
-                disabled={!isValid || !displayMode || isProcessing}
-                onPress={handleBuyRentClick}
-            >
-                <Text style={styles.buyText}>
-                    {isProcessing ? 'Processing...' : displayMode === 'rent' ? 'Rent Now' : displayMode === 'sale' ? 'Buy Now' : 'Select Option'}
-                </Text>
-            </TouchableOpacity>
-        </View>
+        {/* Transaction Handler Component */}
+        <TransactionHandler 
+          property={property}
+          displayMode={displayMode}
+          isValid={isValid}
+        />
       </ScrollView>
-
-      <Modal visible={showUserInfoModal} transparent={true} animationType="slide" onRequestClose={() => setShowUserInfoModal(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Enter Your Details</Text>
-                <TouchableOpacity onPress={() => setShowUserInfoModal(false)} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color="#1a2238" />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.modalSubtitle}>Please provide your details to proceed with the {displayMode === 'rent' ? 'rental' : 'purchase'}.</Text>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Full Name *</Text>
-                <TextInput style={styles.textInput} value={userName} onChangeText={setUserName} placeholder="Enter your full name" placeholderTextColor="#999" autoCapitalize="words"/>
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Phone Number *</Text>
-                <TextInput style={styles.textInput} value={userPhone} onChangeText={setUserPhone} placeholder="Enter your 10-digit phone number" placeholderTextColor="#999" keyboardType="phone-pad" maxLength={10}/>
-              </View>
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowUserInfoModal(false)}>
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.proceedButton} onPress={handleProceedToPayment}>
-                  <Text style={styles.proceedButtonText}>Proceed to Payment</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -664,7 +533,6 @@ const styles = StyleSheet.create({
   reviewAvatars: { flexDirection: 'row', alignItems: 'center' },
   reviewerAvatar: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#fff' },
   reviewCard: { backgroundColor: '#f9f9f9', borderRadius: 20, padding: 16, flexDirection: 'row', gap: 12, marginTop: 20 },
-  reviewerImage: { width: 40, height: 40, borderRadius: 20 },
   reviewerImageContainer: { alignItems: 'center', justifyContent: 'center' },
   reviewerImagePlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1a73e8', alignItems: 'center', justifyContent: 'center' },
   reviewerInitial: { color: '#fff', fontSize: 18, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
@@ -679,24 +547,4 @@ const styles = StyleSheet.create({
   noReviewsText: { color: '#666', fontSize: 14, fontFamily: 'Montserrat_400Regular', textAlign: 'center' },
   viewAllReviews: { backgroundColor: '#1a73e8', padding: 14, alignItems: 'center', borderRadius: 12, marginTop: 10 },
   viewAllReviewsText: { color: '#fff', fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
-  viewAllDisabled: { backgroundColor: '#f3f3f3', padding: 14, alignItems: 'center', borderRadius: 12, marginTop: 10 },
-  viewAllText: { color: '#b0b5c3', fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
-  buyWrapper: { marginHorizontal: 10, marginTop: 5, marginBottom: 20 },
-  buyCTA: { backgroundColor: '#1a73e8', paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 5 },
-  buyText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
-  modalContainer: { flex: 1, justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 20, maxHeight: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#1a2238', fontFamily: 'Montserrat_700Bold' },
-  closeButton: { padding: 4 },
-  modalSubtitle: { fontSize: 14, color: '#666', marginBottom: 24, fontFamily: 'Montserrat_400Regular' },
-  inputContainer: { marginBottom: 20 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#1a2238', marginBottom: 8, fontFamily: 'Montserrat_600SemiBold' },
-  textInput: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#1a2238', fontFamily: 'Montserrat_400Regular', backgroundColor: '#f9f9f9' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  cancelButton: { flex: 1, backgroundColor: '#f3f3f3', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  cancelButtonText: { color: '#666', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
-  proceedButton: { flex: 2, backgroundColor: '#1a73e8', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  proceedButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
 });

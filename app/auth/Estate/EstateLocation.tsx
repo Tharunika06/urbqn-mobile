@@ -2,7 +2,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
 // Replace the expo-maps import with:
-import MapView, { Marker, Polyline, Circle } from 'react-native-maps';import { useNavigation } from '@react-navigation/native';
+import MapView, { Marker, Polyline, Circle } from 'react-native-maps';  
+import { useNavigation } from '@react-navigation/native';
 
 const agentImage = require('../../../assets/images/agent1.1.png');
 const estateImage = require('../../../assets/images/estate1.png'); // Replace with real images later
@@ -76,7 +77,6 @@ const EstateLocation = () => {
 };
 
 export default EstateLocation;
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: {

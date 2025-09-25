@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import GradientButton from '../../../components/Button/GradientButton';
+
 const Page1 = () => {
   const router = useRouter();
 
@@ -94,8 +95,8 @@ const styles = StyleSheet.create({
   image: {
     width: 380,
     height: 460,
-    marginTop: 60,
-    marginBottom: 20,
+    marginTop: 20,
+    marginBottom: 40,
   },
   title: {
     fontSize: 30,
