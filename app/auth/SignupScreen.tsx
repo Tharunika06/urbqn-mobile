@@ -9,7 +9,9 @@ import {
   Modal,
   Alert,
   Dimensions,
+  StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import VerificationScreen from './VerificationScreen';
@@ -64,6 +66,8 @@ export default function SignupScreen() {
   };
 
   return (
+ <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
     <View style={styles.container}>
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>CREATE YOUR PLACE</Text>
@@ -163,17 +167,21 @@ export default function SignupScreen() {
         />
       </Modal>
     </View>
+    </SafeAreaView>
   );
 }
 
 const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
+    safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 24,
-    paddingTop: 60,
     alignItems: 'center',
   },
   logo: {

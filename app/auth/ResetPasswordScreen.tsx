@@ -8,7 +8,9 @@ import {
   Dimensions,
   Alert,
   Image,
+  StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import {
@@ -68,6 +70,9 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
     <View style={styles.overlay}>
       <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
 
@@ -155,12 +160,78 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
         </Text>
       </View>
     </View>
+    </SafeAreaView>
   );
 }
 
 const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  backIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
+  // backButton: {
+  //   position: 'absolute',
+  //   top: 10,
+  //   left: 20,
+  //   zIndex: 10,
+  //   padding: 8,
+  // },
+  image: {
+    width: 380,
+    height: 460,
+marginTop: 40,
+    marginBottom: 5,
+  },
+  title: {
+    fontSize: 30,
+    textAlign: 'center',
+    color: '#1e1e1e',
+    lineHeight: 42,
+    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+  },
+  progressBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    marginVertical: 20,
+  },
+  progressSegment: {
+    width: 20,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d3d3d3',
+  },
+  activeSegment: {
+    backgroundColor: '#0a84ff',
+    width: 40,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 130,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
@@ -175,11 +246,11 @@ const styles = StyleSheet.create({
     elevation: 10,
     paddingTop: 60,
   },
-  backIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain',
-  },
+  // backIcon: {
+  //   width: 24,
+  //   height: 24,
+  //   resizeMode: 'contain',
+  // },
   backButton: {
     position: 'absolute',
     top: 20,
@@ -219,18 +290,18 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 14,
   },
-  button: {
-    backgroundColor: '#000',
-    paddingVertical: 14,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontFamily: 'SFProText-Bold', // Replace with local SF Pro if used
-  },
+  // button: {
+  //   backgroundColor: '#000',
+  //   paddingVertical: 14,
+  //   borderRadius: 6,
+  //   alignItems: 'center',
+  //   marginBottom: 16,
+  // },
+  // buttonText: {
+  //   color: '#fff',
+  //   fontSize: 15,
+  //   fontFamily: 'SFProText-Bold', // Replace with local SF Pro if used
+  // },
   legalText: {
     fontSize: 12,
     color: '#6c6c6c',

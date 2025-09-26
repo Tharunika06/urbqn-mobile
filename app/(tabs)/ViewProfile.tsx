@@ -10,9 +10,10 @@ import {
   Alert,
   ScrollView,
   StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,7 +48,6 @@ interface ProfilesResponse {
 }
 
 export default function ViewProfile() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [originalProfile, setOriginalProfile] = useState<ProfileData | null>(null);
@@ -58,7 +58,19 @@ export default function ViewProfile() {
   const [isEditing, setIsEditing] = useState(false);
 
   const BASE_URL = "http://192.168.0.152:5000/api";
-  
+
+  // Enhanced alert function to ensure it shows on all platforms
+  const showAlert = (title: string, message: string, buttons?: any[]) => {
+    // Add a small delay to ensure the UI is ready
+    setTimeout(() => {
+      Alert.alert(title, message, buttons, { 
+        cancelable: false,
+        // For Android, ensure it's not dismissed accidentally
+        userInterfaceStyle: 'light'
+      });
+    }, 100);
+  };
+
   // Get current user from AsyncStorage
   const getCurrentUser = async (): Promise<UserData | null> => {
     try {
@@ -117,7 +129,9 @@ export default function ViewProfile() {
         
         const user = await getCurrentUser();
         if (!user) {
-          Alert.alert("Authentication Required", "Please log in to view your profile.");
+          showAlert("Authentication Required", "Please log in to view your profile.", [
+            { text: "OK", onPress: () => router.push('/auth/LoginScreen') }
+          ]);
           return;
         }
 
@@ -130,7 +144,7 @@ export default function ViewProfile() {
         }
       } catch (error) {
         console.error("Error loading profile:", error);
-        Alert.alert("Error", "Failed to load profile data.");
+        showAlert("Error", "Failed to load profile data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -140,15 +154,26 @@ export default function ViewProfile() {
   }, []);
 
   // Photo upload functionality
-  const requestPermissions = async () => {
-    const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-    const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (!cameraPermission.granted || !mediaLibraryPermission.granted) {
-      Alert.alert('Permissions Required', 'Camera and photo access are needed.');
+  const requestPermissions = async (): Promise<boolean> => {
+    try {
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!cameraPermission.granted || !mediaLibraryPermission.granted) {
+        showAlert('Permissions Required', 'Camera and photo access permissions are needed to update your profile picture.', [
+          { text: 'Settings', onPress: () => {
+            // You might want to open device settings here
+            console.log('Open settings');
+          }},
+          { text: 'Cancel', style: 'cancel' }
+        ]);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      showAlert('Permission Error', 'Failed to request permissions. Please try again.');
       return false;
     }
-    return true;
   };
 
   const convertToBase64 = async (uri: string): Promise<string> => {
@@ -165,9 +190,19 @@ export default function ViewProfile() {
   };
 
   const handlePhotoSelection = () => {
-    Alert.alert('Update Profile Picture', 'Choose an option', [
-      { text: 'Camera', onPress: openCamera },
-      { text: 'Photo Library', onPress: openImagePicker },
+    showAlert('Update Profile Picture', 'Choose an option:', [
+      { 
+        text: 'Camera', 
+        onPress: () => {
+          setTimeout(openCamera, 200); // Small delay to ensure alert is dismissed
+        }
+      },
+      { 
+        text: 'Photo Library', 
+        onPress: () => {
+          setTimeout(openImagePicker, 200); // Small delay to ensure alert is dismissed
+        }
+      },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -175,30 +210,38 @@ export default function ViewProfile() {
   const openCamera = async () => {
     if (!(await requestPermissions())) return;
     
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      await updateProfilePhoto(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        await updateProfilePhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      showAlert('Camera Error', 'Failed to open camera. Please try again.');
     }
   };
 
   const openImagePicker = async () => {
     if (!(await requestPermissions())) return;
     
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      await updateProfilePhoto(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        await updateProfilePhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      showAlert('Photo Library Error', 'Failed to open photo library. Please try again.');
     }
   };
 
@@ -217,13 +260,28 @@ export default function ViewProfile() {
         { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
       );
 
-      Alert.alert('Success', 'Profile picture updated!');
+      showAlert('Success', 'Profile picture updated successfully!');
       setOriginalProfile(prev => ({ ...prev, photo: base64Image }));
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Photo update error:', error);
       setProfile(prev => ({ ...prev, photo: originalProfile?.photo || null }));
-      Alert.alert('Error', 'Failed to update photo. Please try again.');
+      
+      // Check if it's an axios error by examining error properties
+      const axiosError = error as any;
+      if (axiosError?.response || axiosError?.request || axiosError?.code) {
+        if (axiosError.code === 'ECONNABORTED') {
+          showAlert('Timeout Error', 'Photo upload timed out. Please check your connection and try again.');
+        } else if (axiosError.response) {
+          showAlert('Server Error', `Failed to update photo: ${axiosError.response.status}. Please try again.`);
+        } else if (axiosError.request) {
+          showAlert('Network Error', 'No response from server. Please check your internet connection.');
+        } else {
+          showAlert('Upload Error', 'Failed to upload photo. Please try again.');
+        }
+      } else {
+        showAlert('Error', 'Failed to update photo. Please try again.');
+      }
     } finally {
       setUploadingPhoto(false);
     }
@@ -241,10 +299,25 @@ export default function ViewProfile() {
 
     for (const { field, name } of required) {
       if (!field) {
-        Alert.alert("Validation Error", `${name} is required.`);
+        showAlert("Validation Error", `${name} is required. Please fill in all fields.`);
         return false;
       }
     }
+
+    // Additional validation for DOB format
+    const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (profileData.dob && !dobRegex.test(profileData.dob.trim())) {
+      showAlert("Invalid Date", "Please enter date of birth in YYYY-MM-DD format (e.g., 1990-01-15).");
+      return false;
+    }
+
+    // Phone number validation
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    if (profileData.phone && !phoneRegex.test(profileData.phone.replace(/\s/g, ''))) {
+      showAlert("Invalid Phone", "Please enter a valid phone number.");
+      return false;
+    }
+
     return true;
   };
 
@@ -271,19 +344,39 @@ export default function ViewProfile() {
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
 
-      Alert.alert("Success", "Profile updated successfully!");
-      setOriginalProfile({ ...updatedProfile });
-      setIsEditing(false);
+      showAlert("Success", "Your profile has been updated successfully!", [
+        { text: "OK", onPress: () => {
+          setOriginalProfile({ ...updatedProfile });
+          setIsEditing(false);
+        }}
+      ]);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Profile update error:", error);
       
-      if (error?.response) {
-        Alert.alert("Update Failed", `Server error: ${error.response.status}`);
-      } else if (error?.request) {
-        Alert.alert("Network Error", "Please check your connection.");
+      // Check if it's an axios error by examining error properties
+      const axiosError = error as any;
+      if (axiosError?.response || axiosError?.request || axiosError?.code) {
+        if (axiosError.code === 'ECONNABORTED') {
+          showAlert("Timeout Error", "Request timed out. Please check your connection and try again.");
+        } else if (axiosError.response) {
+          const status = axiosError.response.status;
+          if (status === 400) {
+            showAlert("Invalid Data", "Please check your input and try again.");
+          } else if (status === 404) {
+            showAlert("Profile Not Found", "Your profile could not be found. Please contact support.");
+          } else if (status === 500) {
+            showAlert("Server Error", "Server is experiencing issues. Please try again later.");
+          } else {
+            showAlert("Update Failed", `Server error (${status}). Please try again.`);
+          }
+        } else if (axiosError.request) {
+          showAlert("Network Error", "Could not connect to server. Please check your internet connection.");
+        } else {
+          showAlert("Error", "An unexpected error occurred. Please try again.");
+        }
       } else {
-        Alert.alert("Error", "Failed to update profile.");
+        showAlert("Error", "Failed to update profile. Please try again.");
       }
     } finally {
       setSaving(false);
@@ -291,36 +384,58 @@ export default function ViewProfile() {
   };
 
   // Navigation and editing controls
-  const handleGoBack = () => router.push('/(tabs)/Home');
+  const handleGoBack = () => {
+    if (isEditing) {
+      showAlert("Unsaved Changes", "You have unsaved changes. Are you sure you want to go back?", [
+        { text: "Stay", style: "cancel" },
+        { text: "Leave", onPress: () => router.push('/(tabs)/Home') }
+      ]);
+    } else {
+      router.push('/(tabs)/Home');
+    }
+  };
+
   const handleEdit = () => setIsEditing(true);
+
   const handleCancel = () => {
-    if (originalProfile) setProfile({ ...originalProfile });
-    setIsEditing(false);
+    showAlert("Cancel Changes", "Are you sure you want to cancel your changes?", [
+      { text: "Continue Editing", style: "cancel" },
+      { text: "Cancel Changes", onPress: () => {
+        if (originalProfile) setProfile({ ...originalProfile });
+        setIsEditing(false);
+      }}
+    ]);
   };
 
   // Loading state
   if (loading) {
     return (
-      <View style={[styles.safeArea, styles.centerContent, { paddingTop: insets.top }]}>
+      <SafeAreaView style={[styles.safeArea, styles.centerContent]}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading your profile...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   // Not authenticated state
   if (!currentUser) {
     return (
-      <View style={[styles.safeArea, styles.centerContent, { paddingTop: insets.top }]}>
+      <SafeAreaView style={[styles.safeArea, styles.centerContent]}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <Text style={styles.errorText}>Please log in to view your profile</Text>
-      </View>
+        <TouchableOpacity 
+          style={styles.loginButton} 
+          onPress={() => router.push('/auth/LoginScreen')}
+        >
+          <Text style={styles.loginButtonText}>Go to Login</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -439,7 +554,7 @@ export default function ViewProfile() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -526,5 +641,16 @@ const styles = StyleSheet.create({
   saveButtonDisabled: { backgroundColor: '#ccc' },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   loadingText: { marginTop: 10, fontSize: 16, color: '#777' },
-  errorText: { fontSize: 18, color: 'red' },
+  errorText: { fontSize: 18, color: 'red', textAlign: 'center', marginBottom: 20 },
+  loginButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
+import FavoritesEmptyPage from '../Favorites/FavoriteEmpty';
+import { SafeAreaView } from 'react-native-safe-area-context';
 type PropertyType = {
   id: string | number;
   title: string;
@@ -56,6 +57,9 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
     // const propertyTypeColor = getPropertyTypeColor(item.originalProperty?.status);
 
     return (
+      <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
       <View style={styles.card}>
         <View style={styles.imageContainer}>
           <Image source={item.image} style={styles.image} />
@@ -108,17 +112,13 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
           </View>
         </View>
       </View>
+      </SafeAreaView>
     );
   };
 
   if (favorites.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="heart-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyText}>No favorites yet</Text>
-        <Text style={styles.emptySubtext}>Properties you like will appear here</Text>
-      </View>
-    );
+    return <FavoritesEmptyPage />;
+    
   }
 
   return (
@@ -135,6 +135,71 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  // container: {
+  //   flex: 1,
+  //   backgroundColor: '#ffffff',
+  //   justifyContent: 'space-between',
+  //   alignItems: 'center',
+  //   paddingHorizontal: 20,
+  //   paddingBottom: 30,
+  // },
+  backIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  image: {
+    width: 380,
+    height: 460,
+marginTop: 40,
+    marginBottom: 5,
+  },
+  title: {
+    fontSize: 30,
+    textAlign: 'center',
+    color: '#1e1e1e',
+    lineHeight: 42,
+    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+  },
+  progressBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    marginVertical: 20,
+  },
+  progressSegment: {
+    width: 20,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d3d3d3',
+  },
+  activeSegment: {
+    backgroundColor: '#0a84ff',
+    width: 40,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 130,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+  },
   container: {
     marginTop: 16,
     paddingHorizontal: 16,
@@ -169,11 +234,11 @@ const styles = StyleSheet.create({
     width: '91%',
     height: 160,
   },
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
+  // image: {
+  //   width: '100%',
+  //   height: '100%',
+  //   resizeMode: 'cover',
+  // },
   heartIcon: {
     position: 'absolute',
     top: 12,
@@ -234,13 +299,13 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 12,
   },
-  title: {
-    fontSize: 14,
-    fontFamily: 'Montserrat_600SemiBold',
-    color: '#1A2238',
-    marginBottom: 8,
-    lineHeight: 18,
-  },
+  // title: {
+  //   fontSize: 14,
+  //   fontFamily: 'Montserrat_600SemiBold',
+  //   color: '#1A2238',
+  //   marginBottom: 8,
+  //   lineHeight: 18,
+  // },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',

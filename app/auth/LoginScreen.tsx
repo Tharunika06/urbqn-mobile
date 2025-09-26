@@ -12,7 +12,9 @@ import {
   Modal,
   Dimensions,
   Alert,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import GradientButton from '../../components/Button/GradientButton';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -77,176 +79,183 @@ export default function LoginScreen() {
 };
 
   return (
-    <View style={styles.container}>
-      {(showForgotPassword || showVerification || showResetPassword) && (
-        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
-      )}
-
-      <Image
-        source={require('../../assets/images/logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-
-      <Text style={styles.title}>WELCOME BACK!👋🏻</Text>
-      <Text style={[textStyle,styles.subtitle]}>
-        We're glad to see you again. Log in to access your account and explore our latest features.
-      </Text>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="person" size={20} color="#6c757d" style={styles.icon} />
-        <TextInput
-          placeholder="User Name"
-          placeholderTextColor="#6c757d"
-          style={[textStyle,styles.input]}
-          value={email}
-          onChangeText={setEmail}
-        />
-      </View>
-
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color="#6c757d" style={styles.icon} />
-              <TextInput
-                placeholder="Password"
-                placeholderTextColor="#6c757d"
-                secureTextEntry={!showPassword}
-                style={[textStyle, styles.input]}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? 'eye' : 'eye-off'}
-                  size={20}
-                  color="#6c757d"
+      <View style={styles.container}>
+        {(showForgotPassword || showVerification || showResetPassword) && (
+          <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
+        )}
+
+        <Image
+          source={require('../../assets/images/logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+
+        <Text style={styles.title}>WELCOME BACK!👋🏻</Text>
+        <Text style={[textStyle,styles.subtitle]}>
+          We're glad to see you again. Log in to access your account and explore our latest features.
+        </Text>
+
+        <View style={styles.inputContainer}>
+          <Ionicons name="person" size={20} color="#6c757d" style={styles.icon} />
+          <TextInput
+            placeholder="User Name"
+            placeholderTextColor="#6c757d"
+            style={[textStyle,styles.input]}
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
+
+        
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed" size={20} color="#6c757d" style={styles.icon} />
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor="#6c757d"
+                  secureTextEntry={!showPassword}
+                  style={[textStyle, styles.input]}
+                  value={password}
+                  onChangeText={setPassword}
                 />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? 'eye' : 'eye-off'}
+                    size={20}
+                    color="#6c757d"
+                  />
+                </TouchableOpacity>
+              </View>
+
+        <View style={styles.optionsRow}>
+          <View style={styles.rememberContainer}>
+            <Switch
+              value={rememberMe}
+              onValueChange={() => setRememberMe(!rememberMe)}
+              trackColor={{ false: '#ccc', true: '#0d6efd' }}
+              thumbColor="#fff"
+            />
+            <Text style={styles.rememberText}>Remember Me</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              setIsFromSignup(false);
+              setShowForgotPassword(true);
+            }}
+          >
+            <Text style={[textStyle,styles.forgotText]}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
+
+      <GradientButton
+    onPress={handleLogin}
+    label="Login"
+    colors={['#000000', '#474747']}
+   
+  />
+
+        <View style={styles.dividerRow}>
+    <Image source={require('../../assets/icons/left.png')} style={styles.lineImage} />
+    <Text style={[textStyle, styles.orText]}>Or continue with</Text>
+    <Image source={require('../../assets/icons/right.png')} style={styles.lineImage} />
+  </View>
+
+        <View style={styles.socialButtons}>
+    <TouchableOpacity style={styles.socialBtn}>
+      <Image source={require('../../assets/icons/apple.png')} style={styles.socialIcon} />
+      <Text style={[textStyle, styles.socialBtnText]}>Continue with Apple</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.socialBtn}>
+      <Image source={require('../../assets/icons/google.png')} style={styles.socialIcon} />
+      <Text style={[textStyle, styles.socialBtnText]}>Continue with Google</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.socialBtn}>
+      <Image source={require('../../assets/icons/facebook.png')} style={styles.socialIcon} />
+      <Text style={[textStyle, styles.socialBtnText]}>Continue with Facebook</Text>
+    </TouchableOpacity>
+  </View>
+
+        <View style={styles.signupRow}>
+          <Text style={[textStyle,styles.footer]}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => router.push('/auth/SignupScreen')}>
+            <Text style={styles.link}>Sign up</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Modals */}
+        <Modal transparent animationType="slide" visible={showForgotPassword}>
+          <ForgotPasswordScreen
+            onClose={() => setShowForgotPassword(false)}
+            onContinue={(emailFromForgot) => {
+              setEmail(emailFromForgot);
+              setShowForgotPassword(false);
+              setShowVerification(true);
+            }}
+          />
+        </Modal>
+
+        <Modal transparent animationType="slide" visible={showVerification}>
+          <VerificationScreen
+            email={email}
+            isFromSignup={isFromSignup} // ✅ important flag
+            onClose={() => setShowVerification(false)}
+            onContinue={() => {
+              setShowVerification(false);
+              setShowResetPassword(true);
+            }}
+          />
+        </Modal>
+
+        <Modal transparent animationType="slide" visible={showResetPassword}>
+          <ResetPasswordScreen
+            onClose={() => {
+              setShowResetPassword(false);
+              setEmail('');
+              setPassword('');
+            }}
+            email={email}
+          />
+        </Modal>
+
+        <Modal transparent animationType="fade" visible={showSuccessModal}>
+          <View style={styles.overlay}>
+            <View style={styles.successCard}>
+              <Image
+                source={require('../../assets/images/success.png')}
+                style={styles.successImage}
+              />
+              <Text style={styles.successText}>SUCCESSFULLY LOGGED IN</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowSuccessModal(false);
+                  router.push('/(tabs)/Home');
+                }}
+                style={styles.successButton}
+              >
+                <Text style={styles.successButtonText}>Continue</Text>
               </TouchableOpacity>
             </View>
-
-      <View style={styles.optionsRow}>
-        <View style={styles.rememberContainer}>
-          <Switch
-            value={rememberMe}
-            onValueChange={() => setRememberMe(!rememberMe)}
-            trackColor={{ false: '#ccc', true: '#0d6efd' }}
-            thumbColor="#fff"
-          />
-          <Text style={styles.rememberText}>Remember Me</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => {
-            setIsFromSignup(false);
-            setShowForgotPassword(true);
-          }}
-        >
-          <Text style={[textStyle,styles.forgotText]}>Forgot Password?</Text>
-        </TouchableOpacity>
-      </View>
-
-    <GradientButton
-  onPress={handleLogin}
-  label="Login"
-  colors={['#000000', '#474747']}
- 
-/>
-
-      <View style={styles.dividerRow}>
-  <Image source={require('../../assets/icons/left.png')} style={styles.lineImage} />
-  <Text style={[textStyle, styles.orText]}>Or continue with</Text>
-  <Image source={require('../../assets/icons/right.png')} style={styles.lineImage} />
-</View>
-
-      <View style={styles.socialButtons}>
-  <TouchableOpacity style={styles.socialBtn}>
-    <Image source={require('../../assets/icons/apple.png')} style={styles.socialIcon} />
-    <Text style={[textStyle, styles.socialBtnText]}>Continue with Apple</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity style={styles.socialBtn}>
-    <Image source={require('../../assets/icons/google.png')} style={styles.socialIcon} />
-    <Text style={[textStyle, styles.socialBtnText]}>Continue with Google</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity style={styles.socialBtn}>
-    <Image source={require('../../assets/icons/facebook.png')} style={styles.socialIcon} />
-    <Text style={[textStyle, styles.socialBtnText]}>Continue with Facebook</Text>
-  </TouchableOpacity>
-</View>
-
-      <View style={styles.signupRow}>
-        <Text style={[textStyle,styles.footer]}>Don't have an account? </Text>
-        <TouchableOpacity onPress={() => router.push('/auth/SignupScreen')}>
-          <Text style={styles.link}>Sign up</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modals */}
-      <Modal transparent animationType="slide" visible={showForgotPassword}>
-        <ForgotPasswordScreen
-          onClose={() => setShowForgotPassword(false)}
-          onContinue={(emailFromForgot) => {
-            setEmail(emailFromForgot);
-            setShowForgotPassword(false);
-            setShowVerification(true);
-          }}
-        />
-      </Modal>
-
-      <Modal transparent animationType="slide" visible={showVerification}>
-        <VerificationScreen
-          email={email}
-          isFromSignup={isFromSignup} // ✅ important flag
-          onClose={() => setShowVerification(false)}
-          onContinue={() => {
-            setShowVerification(false);
-            setShowResetPassword(true);
-          }}
-        />
-      </Modal>
-
-      <Modal transparent animationType="slide" visible={showResetPassword}>
-        <ResetPasswordScreen
-          onClose={() => {
-            setShowResetPassword(false);
-            setEmail('');
-            setPassword('');
-          }}
-          email={email}
-        />
-      </Modal>
-
-      <Modal transparent animationType="fade" visible={showSuccessModal}>
-        <View style={styles.overlay}>
-          <View style={styles.successCard}>
-            <Image
-              source={require('../../assets/images/success.png')}
-              style={styles.successImage}
-            />
-            <Text style={styles.successText}>SUCCESSFULLY LOGGED IN</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setShowSuccessModal(false);
-                router.push('/(tabs)/Home');
-              }}
-              style={styles.successButton}
-            >
-              <Text style={styles.successButtonText}>Continue</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 24,
-    paddingTop: 60,
     alignItems: 'center',
   },
   logo: {

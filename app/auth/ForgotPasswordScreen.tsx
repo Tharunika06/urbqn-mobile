@@ -8,7 +8,9 @@ import {
   Dimensions,
   Alert,
   Image,
+  StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,6 +64,9 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
   };
 
   return (
+     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
     <View style={styles.overlay}>
       <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
 
@@ -110,12 +115,17 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
         </Text>
       </View>
     </View>
+    </SafeAreaView>
   );
 }
 
 const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
+    safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',

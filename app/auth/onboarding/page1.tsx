@@ -5,7 +5,9 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,71 +25,75 @@ const Page1 = () => {
   if (!fontsLoaded) return null;
 
   return (
-    <View style={styles.container}>
-      {/* Back Button */}
-      <TouchableOpacity
-  style={styles.backButton}
-  onPress={() => router.push('/auth/LoginScreen')}
->
-  <Image
-    source={require('../../../assets/icons/back-arrow.png')}
-    style={styles.backIcon}
-  />
-</TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
+      <View style={styles.container}>
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.push('/auth/LoginScreen')}
+        >
+          <Image
+            source={require('../../../assets/icons/back-arrow.png')}
+            style={styles.backIcon}
+          />
+        </TouchableOpacity>
 
-
-      {/* Image + Text */}
-      <View style={{ alignItems: 'center' }}>
-        <Image
-          source={require('../../../assets/images/house1.png')}
-          style={styles.image}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>
-          EXPERIENCE VIRTUAL HOME{'\n'}TOURS FROM THE COMFORT{'\n'}OF YOUR COUCH
-        </Text>
-      </View>
-
-      {/* Progress + Next */}
-      <View style={{ alignItems: 'center' }}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressSegment, styles.activeSegment]} />
-          <View style={styles.progressSegment} />
-          <View style={styles.progressSegment} />
+        {/* Image + Text */}
+        <View style={{ alignItems: 'center' }}>
+          <Image
+            source={require('../../../assets/images/house1.png')}
+            style={styles.image}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>
+            EXPERIENCE VIRTUAL HOME{'\n'}TOURS FROM THE COMFORT{'\n'}OF YOUR COUCH
+          </Text>
         </View>
 
-            <GradientButton
-  onPress={() => router.push('/auth/onboarding/page2')}
-  label="Next"
-  colors={['#000000', '#474747']}
- 
-/>
+        {/* Progress + Next */}
+        <View style={{ alignItems: 'center' }}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressSegment, styles.activeSegment]} />
+            <View style={styles.progressSegment} />
+            <View style={styles.progressSegment} />
+          </View>
+
+          <GradientButton
+            onPress={() => router.push('/auth/onboarding/page2')}
+            label="Next"
+            colors={['#000000', '#474747']}
+          />
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 export default Page1;
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 30,
   },
   backIcon: {
-  width: 24,
-  height: 24,
-  resizeMode: 'contain',
-},
-
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
   backButton: {
     position: 'absolute',
-    top: 50,
+    top: 10,
     left: 20,
     zIndex: 10,
     padding: 8,
@@ -95,8 +101,8 @@ const styles = StyleSheet.create({
   image: {
     width: 380,
     height: 460,
-    marginTop: 20,
-    marginBottom: 40,
+marginTop: 40,
+    marginBottom: 5,
   },
   title: {
     fontSize: 30,

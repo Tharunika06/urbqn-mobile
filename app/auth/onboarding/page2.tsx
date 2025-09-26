@@ -5,7 +5,9 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import GradientButton from '@/components/Button/GradientButton';
@@ -13,8 +15,11 @@ export default function Page2() {
   const router = useRouter();
 
   return (
+  <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+          
     <View style={styles.container}>
-           <TouchableOpacity
+      <TouchableOpacity
        style={styles.backButton}
        onPress={() => router.push('/auth/onboarding/page1')}
      >
@@ -47,27 +52,31 @@ export default function Page2() {
  
 />
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+ safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 30,
   },
-    backIcon: {
-  width: 24,
-  height: 24,
-  resizeMode: 'contain',
-},
+  backIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
   backButton: {
     position: 'absolute',
-    top: 50,
+    top: 10,
     left: 20,
     zIndex: 10,
     padding: 8,
@@ -75,14 +84,14 @@ const styles = StyleSheet.create({
   image: {
     width: 380,
     height: 460,
-    marginTop: 60,
-    marginBottom: 10,
+marginTop: 40,
+    marginBottom: 5,
   },
-   title: {
+  title: {
     fontSize: 30,
     textAlign: 'center',
     color: '#1e1e1e',
-    lineHeight: 35,
+    lineHeight: 42,
     fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
   },
   progressBar: {
@@ -111,5 +120,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+    fontFamily: 'SFPro', // ✅ Applied SF Pro font
   },
 });

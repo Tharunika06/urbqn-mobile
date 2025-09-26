@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router'; // Import useLocalSearchParams
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 const CallScreen: React.FC = () => {
   const router = useRouter();
   // --- MODIFICATION START ---
@@ -21,6 +21,10 @@ const CallScreen: React.FC = () => {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
+    
     <View style={styles.container}>
       {/* Back Button */}
       <TouchableOpacity style={styles.backButton} onPress={handleEndCall}>
@@ -67,23 +71,89 @@ const CallScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
     </View>
+    </SafeAreaView>
   );
 };
 
 export default CallScreen;
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  backIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
   backButton: {
     position: 'absolute',
-    top: 50,
+    top: 10,
     left: 20,
+    zIndex: 10,
+    padding: 8,
   },
+  image: {
+    width: 380,
+    height: 460,
+marginTop: 40,
+    marginBottom: 5,
+  },
+  title: {
+    fontSize: 30,
+    textAlign: 'center',
+    color: '#1e1e1e',
+    lineHeight: 42,
+    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+  },
+  progressBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    marginVertical: 20,
+  },
+  progressSegment: {
+    width: 20,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d3d3d3',
+  },
+  activeSegment: {
+    backgroundColor: '#0a84ff',
+    width: 40,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 130,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+  },
+  // container: {
+  //   flex: 1,
+  //   backgroundColor: '#fff',
+  //   alignItems: 'center',
+  //   paddingTop: 60,
+  // },
+  // backButton: {
+  //   position: 'absolute',
+  //   top: 50,
+  //   left: 20,
+  // },
   name: {
     fontSize: 22,
     color: '#1a2238',
@@ -117,13 +187,13 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 20,
   },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
+  // image: {
+  //   width: 100,
+  //   height: 100,
+  //   borderRadius: 50,
+  //   borderWidth: 2,
+  //   borderColor: '#fff',
+  // },
   callControlsWrapper: {
     position: 'absolute',
     bottom: 0,

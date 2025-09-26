@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, ScrollView, StatusBar, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TextInput, StyleSheet, Pressable, Image, ScrollView, StatusBar, Platform, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -17,9 +18,20 @@ interface ProfileData {
   photo: string | null | undefined;
 }
 
+// Custom popup interface
+interface PopupConfig {
+  visible: boolean;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  buttons: {
+    text: string;
+    onPress: () => void;
+    style?: 'default' | 'cancel' | 'destructive';
+  }[];
+}
+
 export default function Profile() {
-  const insets = useSafeAreaInsets();
-  
   const [profile, setProfile] = useState<ProfileData>({
     firstName: '',
     lastName: '',
@@ -34,6 +46,93 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // Custom popup state
+  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+    buttons: []
+  });
+
+  const showPopup = (
+    title: string, 
+    message: string, 
+    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
+    type: PopupConfig['type'] = 'info'
+  ) => {
+    setPopupConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      buttons
+    });
+  };
+
+  const hidePopup = () => {
+    setPopupConfig(prev => ({ ...prev, visible: false }));
+  };
+
+  // Get popup icon based on type
+  const getPopupIcon = (type: PopupConfig['type']) => {
+    switch (type) {
+      case 'success':
+        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
+      case 'error':
+        return { name: 'close-circle' as const, color: '#f44336' };
+      case 'warning':
+        return { name: 'warning' as const, color: '#ff9800' };
+      case 'info':
+      default:
+        return { name: 'information-circle' as const, color: '#1a73e8' };
+    }
+  };
+
+  // Custom popup component
+  const CustomPopup = () => {
+    if (!popupConfig.visible) return null;
+    
+    const icon = getPopupIcon(popupConfig.type);
+    
+    return (
+      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
+        <View style={styles.popupOverlay}>
+          <View style={styles.popupContainer}>
+            <View style={styles.popupIconContainer}>
+              <Ionicons name={icon.name} size={64} color={icon.color} />
+            </View>
+            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
+            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
+            
+            <View style={styles.popupButtonsContainer}>
+              {popupConfig.buttons.map((button, index) => (
+                <Pressable
+                  key={index}
+                  style={[
+                    styles.popupButton,
+                    button.style === 'cancel' && styles.popupCancelButton,
+                    button.style === 'destructive' && styles.popupDestructiveButton,
+                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
+                  ]} 
+                  onPress={button.onPress}
+                >
+                  <Text style={[
+                    styles.popupButtonText,
+                    button.style === 'cancel' && styles.popupCancelButtonText,
+                    button.style === 'destructive' && styles.popupDestructiveButtonText
+                  ]}>
+                    {button.text}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   // ✅ Pick image and convert to base64
   const pickImage = async () => {
     try {
@@ -41,7 +140,12 @@ export default function Profile() {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
-        Alert.alert("Permission Required", "Permission to access camera roll is required!");
+        showPopup(
+          "Permission Required", 
+          "Permission to access camera roll is required!",
+          [{ text: 'OK', onPress: hidePopup }],
+          'warning'
+        );
         return;
       }
 
@@ -88,7 +192,12 @@ export default function Profile() {
       }
     } catch (error) {
       console.error('Image picker error:', error);
-      Alert.alert("Error", "Failed to pick image");
+      showPopup(
+        "Error", 
+        "Failed to pick image",
+        [{ text: 'OK', onPress: hidePopup }],
+        'error'
+      );
     }
   };
 
@@ -109,27 +218,52 @@ export default function Profile() {
     try {
       // ✅ Enhanced validation
       if (!profile.firstName?.trim()) {
-        Alert.alert("Validation Error", "First Name is required.");
+        showPopup(
+          "Validation Error", 
+          "First Name is required.",
+          [{ text: 'OK', onPress: hidePopup }],
+          'error'
+        );
         return;
       }
 
       if (!profile.lastName?.trim()) {
-        Alert.alert("Validation Error", "Last Name is required.");
+        showPopup(
+          "Validation Error", 
+          "Last Name is required.",
+          [{ text: 'OK', onPress: hidePopup }],
+          'error'
+        );
         return;
       }
 
       if (!profile.email?.trim()) {
-        Alert.alert("Validation Error", "Email is required.");
+        showPopup(
+          "Validation Error", 
+          "Email is required.",
+          [{ text: 'OK', onPress: hidePopup }],
+          'error'
+        );
         return;
       }
 
       if (!isValidEmail(profile.email)) {
-        Alert.alert("Validation Error", "Please enter a valid email address.");
+        showPopup(
+          "Validation Error", 
+          "Please enter a valid email address.",
+          [{ text: 'OK', onPress: hidePopup }],
+          'error'
+        );
         return;
       }
 
       if (profile.phone && !isValidPhone(profile.phone)) {
-        Alert.alert("Validation Error", "Please enter a valid phone number.");
+        showPopup(
+          "Validation Error", 
+          "Please enter a valid phone number.",
+          [{ text: 'OK', onPress: hidePopup }],
+          'error'
+        );
         return;
       }
 
@@ -165,13 +299,14 @@ export default function Profile() {
 
       console.log('✅ Profile saved successfully:', response.data);
       
-      Alert.alert(
+      showPopup(
         "Success", 
         "Profile created successfully!",
         [
           {
             text: 'Continue',
             onPress: () => {
+              hidePopup();
               // Reset form
               setProfile({
                 firstName: '',
@@ -185,7 +320,8 @@ export default function Profile() {
               router.push('/(tabs)/Home');
             }
           }
-        ]
+        ],
+        'success'
       );
 
     } catch (err: any) {
@@ -199,7 +335,12 @@ export default function Profile() {
         errorMessage = "Request timeout. Please try again.";
       }
       
-      Alert.alert("Error", errorMessage);
+      showPopup(
+        "Error", 
+        errorMessage,
+        [{ text: 'OK', onPress: hidePopup }],
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -215,13 +356,8 @@ export default function Profile() {
   };
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      {/* Status Bar Configuration */}
-      <StatusBar 
-        barStyle="dark-content"
-        backgroundColor="#fff"
-        translucent={false}
-      />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
       <ScrollView 
         style={styles.scrollView}
@@ -242,13 +378,13 @@ export default function Profile() {
               }
               style={styles.photo}
             />
-            <TouchableOpacity 
+            <Pressable 
               style={styles.editIcon} 
               onPress={pickImage}
               disabled={loading}
             >
               <Text style={styles.editIconText}>✎</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Form Fields */}
@@ -271,14 +407,14 @@ export default function Profile() {
           />
 
           {/* DOB Picker */}
-          <TouchableOpacity 
+          <Pressable 
             onPress={() => !loading && setShowDatePicker(true)} 
             style={[styles.input, loading && styles.disabledInput]}
           >
             <Text style={profile.dob ? styles.dateText : styles.placeholderText}>
               {profile.dob ? new Date(profile.dob).toLocaleDateString() : "Select Date of Birth"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
           
           {showDatePicker && (
             <DateTimePicker
@@ -325,7 +461,7 @@ export default function Profile() {
           </View>
 
           {/* Save Button */}
-          <TouchableOpacity 
+          <Pressable 
             style={[styles.button, loading && styles.disabledButton]} 
             onPress={handleSave}
             disabled={loading}
@@ -333,13 +469,16 @@ export default function Profile() {
             <Text style={styles.buttonText}>
               {loading ? 'Creating Profile...' : 'Continue'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Required fields note */}
           <Text style={styles.requiredNote}>* Required fields</Text>
         </View>
       </ScrollView>
-    </View>
+
+      {/* Custom Popup */}
+      <CustomPopup />
+    </SafeAreaView>
   );
 }
 
@@ -461,5 +600,74 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 10,
     fontStyle: 'italic'
-  }
+  },
+
+  // Popup styles
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  popupContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+    minWidth: 280,
+    maxWidth: 350,
+  },
+  popupIconContainer: {
+    marginBottom: 16,
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a2238',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  popupMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  popupButtonsContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'center',
+  },
+  popupButton: {
+    backgroundColor: '#6C63FF',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    minWidth: 100,
+  },
+  popupButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  popupCancelButton: {
+    backgroundColor: '#f3f3f3',
+  },
+  popupCancelButtonText: {
+    color: '#666',
+  },
+  popupDestructiveButton: {
+    backgroundColor: '#f44336',
+  },
+  popupDestructiveButtonText: {
+    color: '#fff',
+  },
 });

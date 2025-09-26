@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../../components/home/Header';
 import SearchBar from '../../components/home/SearchBar';
@@ -105,7 +106,8 @@ export default function Home() {
   ];
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -133,7 +135,7 @@ export default function Home() {
         )}
       </ScrollView>
       <Footer />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -144,7 +146,6 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: '#fff',
-    paddingTop: 50,
     paddingBottom: 100,
     paddingHorizontal: 16,
   },

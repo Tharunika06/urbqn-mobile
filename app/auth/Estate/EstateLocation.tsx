@@ -1,10 +1,10 @@
 // EstateLocation.tsx
 import React from 'react';
-import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, Dimensions,StatusBar } from 'react-native';
 // Replace the expo-maps import with:
 import MapView, { Marker, Polyline, Circle } from 'react-native-maps';  
 import { useNavigation } from '@react-navigation/native';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 const agentImage = require('../../../assets/images/agent1.1.png');
 const estateImage = require('../../../assets/images/estate1.png'); // Replace with real images later
 const estateLocations = [
@@ -19,6 +19,9 @@ const EstateLocation = () => {
   const estateCoords = { latitude: 37.78825, longitude: -122.4324 };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
     <View style={styles.container}>
       <MapView
         style={styles.map}
@@ -73,12 +76,78 @@ const EstateLocation = () => {
         </Text>
       </View>
     </View>
+    </SafeAreaView>
   );
 };
 
 export default EstateLocation;
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  backIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  image: {
+    width: 380,
+    height: 460,
+marginTop: 40,
+    marginBottom: 5,
+  },
+  title: {
+    fontSize: 30,
+    textAlign: 'center',
+    color: '#1e1e1e',
+    lineHeight: 42,
+    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+  },
+  progressBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    marginVertical: 20,
+  },
+  progressSegment: {
+    width: 20,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d3d3d3',
+  },
+  activeSegment: {
+    backgroundColor: '#0a84ff',
+    width: 40,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 130,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+  },
+
   map: {
     width: '100%',
     height: Dimensions.get('window').height,

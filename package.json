@@ -14,6 +14,7 @@
     "@stripe/stripe-react-native": "^0.53.0",
     "axios": "^1.12.2",
     "expo": "^54.0.8",
+    "expo-app-loading": "^2.1.1",
     "expo-asset": "~12.0.8",
     "expo-av": "^16.0.7",
     "expo-barcode-scanner": "^13.0.1",

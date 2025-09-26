@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  SafeAreaView,
+ StatusBar,
   Keyboard,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -73,6 +74,7 @@ export default function PickLocation() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       {/* Map */}
       <MapView ref={mapRef} style={styles.map} region={location}>
         <Marker coordinate={{ latitude: location.latitude, longitude: location.longitude }} />

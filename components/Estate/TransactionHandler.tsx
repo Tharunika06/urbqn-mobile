@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  Alert,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -43,6 +42,19 @@ interface TransactionHandlerProps {
   isValid: boolean;
 }
 
+// Custom popup interface
+interface PopupConfig {
+  visible: boolean;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  buttons: {
+    text: string;
+    onPress: () => void;
+    style?: 'default' | 'cancel' | 'destructive';
+  }[];
+}
+
 export default function TransactionHandler({ property, displayMode, isValid }: TransactionHandlerProps) {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -54,12 +66,41 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [hasCompleteProfile, setHasCompleteProfile] = useState(false);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
+  
+  // Custom popup state
+  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+    buttons: []
+  });
 
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   useEffect(() => {
     loadUserProfile();
   }, []);
+
+  // Custom popup function to replace Alert.alert
+  const showPopup = (
+    title: string, 
+    message: string, 
+    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
+    type: PopupConfig['type'] = 'info'
+  ) => {
+    setPopupConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      buttons
+    });
+  };
+
+  const hidePopup = () => {
+    setPopupConfig(prev => ({ ...prev, visible: false }));
+  };
 
   // Helper function to construct full name from profile
   const getFullNameFromProfile = (profile: UserProfile): string => {
@@ -257,11 +298,15 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
   const handleProceedToPayment = () => {
     if (!userName.trim()) {
-      Alert.alert('Validation Error', 'Please enter your name.');
+      showPopup('Validation Error', 'Please enter your name.', [
+        { text: 'OK', onPress: hidePopup }
+      ], 'error');
       return;
     }
     if (!userPhone.trim() || userPhone.trim().length < 10) {
-      Alert.alert('Validation Error', 'Please enter a valid 10-digit phone number.');
+      showPopup('Validation Error', 'Please enter a valid 10-digit phone number.', [
+        { text: 'OK', onPress: hidePopup }
+      ], 'error');
       return;
     }
 
@@ -275,7 +320,9 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
     const price = displayMode === 'rent' ? parsePrice(property.rentPrice) : parsePrice(property.salePrice);
     if (!price) {
-      Alert.alert('Error', 'Price is not available for this option.');
+      showPopup('Error', 'Price is not available for this option.', [
+        { text: 'OK', onPress: hidePopup }
+      ], 'error');
       setIsProcessing(false);
       return;
     }
@@ -316,13 +363,14 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       await saveTransactionDetails(clientSecret, price, userName, userPhone);
       await saveUserProfile();
 
-      Alert.alert(
+      showPopup(
         'Payment Successful!',
         `Your transaction for "${property.name}" was completed. Please take a moment to leave a review.`,
         [
           {
             text: 'OK',
             onPress: () => {
+              hidePopup();
               if (property._id) {
                 router.push({
                   pathname: '/auth/Reviews/Review',
@@ -334,12 +382,15 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
               }
             },
           },
-        ]
+        ],
+        'success'
       );
 
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Payment Error', error.message || 'An unexpected error occurred.');
+      showPopup('Payment Error', error.message || 'An unexpected error occurred.', [
+        { text: 'OK', onPress: hidePopup }
+      ], 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -376,7 +427,9 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     try {
       if (!property._id) {
         console.error("Critical Error: Property _id is missing. Cannot save transaction.");
-        Alert.alert("Error", "Could not save transaction because of a data issue.");
+        showPopup("Error", "Could not save transaction because of a data issue.", [
+          { text: 'OK', onPress: hidePopup }
+        ], 'error');
         return;
       }
       const transactionDetails = {
@@ -401,7 +454,12 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       console.log("Transaction details successfully sent to the server.");
     } catch (error: any) {
       console.error("Failed to save transaction on server:", error);
-      Alert.alert("Save Error", `Your payment was successful, but we failed to save the transaction record. Please contact support.\n\nDetails: ${error.message}`);
+      showPopup(
+        "Save Error", 
+        `Your payment was successful, but we failed to save the transaction record. Please contact support.\n\nDetails: ${error.message}`,
+        [{ text: 'OK', onPress: hidePopup }],
+        'warning'
+      );
     }
   };
 
@@ -414,6 +472,21 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     }
     
     return displayMode === 'rent' ? 'Rent Now' : 'Buy Now';
+  };
+
+  // Get popup icon based on type
+  const getPopupIcon = (type: PopupConfig['type']) => {
+    switch (type) {
+      case 'success':
+        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
+      case 'error':
+        return { name: 'close-circle' as const, color: '#f44336' };
+      case 'warning':
+        return { name: 'warning' as const, color: '#ff9800' };
+      case 'info':
+      default:
+        return { name: 'information-circle' as const, color: '#1a73e8' };
+    }
   };
 
   const CancelPaymentPopup = () => (
@@ -438,18 +511,52 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     </Modal>
   );
 
+  // Custom popup component
+  const CustomPopup = () => {
+    if (!popupConfig.visible) return null;
+    
+    const icon = getPopupIcon(popupConfig.type);
+    
+    return (
+      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
+        <View style={styles.popupOverlay}>
+          <View style={styles.popupContainer}>
+            <View style={styles.popupIconContainer}>
+              <Ionicons name={icon.name} size={64} color={icon.color} />
+            </View>
+            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
+            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
+            
+            <View style={styles.popupButtonsContainer}>
+              {popupConfig.buttons.map((button, index) => (
+                <TouchableOpacity 
+                  key={index}
+                  style={[
+                    styles.popupButton,
+                    button.style === 'cancel' && styles.popupCancelButton,
+                    button.style === 'destructive' && styles.popupDestructiveButton,
+                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
+                  ]} 
+                  onPress={button.onPress}
+                >
+                  <Text style={[
+                    styles.popupButtonText,
+                    button.style === 'cancel' && styles.popupCancelButtonText,
+                    button.style === 'destructive' && styles.popupDestructiveButtonText
+                  ]}>
+                    {button.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <>
-      {/* Profile Status Indicator */}
-      {/* {hasCompleteProfile && (
-        <View style={styles.profileStatusContainer}>
-          <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-          <Text style={styles.profileStatusText}>
-            Profile loaded • {userName} • {userPhone} • {userEmail}
-          </Text>
-        </View>
-      )} */}
-
       {/* Buy/Rent Button */}
       <View style={styles.buyWrapper}>
         <TouchableOpacity
@@ -461,9 +568,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
           disabled={!isValid || !displayMode || isProcessing}
           onPress={handleBuyRentClick}
         >
-          {/* {hasCompleteProfile && (
-            <Ionicons name="person-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-          )} */}
           <Text style={styles.buyText}>
             {getBuyButtonText()}
           </Text>
@@ -472,6 +576,9 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
       {/* Custom Cancel Payment Popup */}
       <CancelPaymentPopup />
+
+      {/* Custom Alert Popup */}
+      <CustomPopup />
 
       {/* User Info Modal */}
       <Modal visible={showUserInfoModal} transparent={true} animationType="slide" onRequestClose={() => setShowUserInfoModal(false)}>
@@ -595,6 +702,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 10,
+    minWidth: 280,
   },
   popupIconContainer: {
     marginBottom: 16,
@@ -615,6 +723,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 20,
   },
+  popupButtonsContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'center',
+  },
   popupButton: {
     backgroundColor: '#1a73e8',
     paddingVertical: 12,
@@ -628,6 +741,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Montserrat_600SemiBold',
     textAlign: 'center',
+  },
+  popupCancelButton: {
+    backgroundColor: '#f3f3f3',
+  },
+  popupCancelButtonText: {
+    color: '#666',
+  },
+  popupDestructiveButton: {
+    backgroundColor: '#f44336',
+  },
+  popupDestructiveButtonText: {
+    color: '#fff',
   },
   buyWrapper: { marginHorizontal: 10, marginTop: 5, marginBottom: 20 },
   buyCTA: { 

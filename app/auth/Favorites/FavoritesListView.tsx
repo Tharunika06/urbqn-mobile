@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
+import FavoritesEmptyPage from '../Favorites/FavoriteEmpty';
+import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const cardWidth = width - 32; // 16px padding on each side
 
@@ -67,6 +68,9 @@ export default function FavoritesListView({ favorites, onDelete, onToggleFavorit
     const isFavorite = true; // Assuming you track whether the item is a favorite or not. You can modify this condition based on your logic.
 
     return (
+      <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
       <Swipeable renderRightActions={() => renderRightActions(item.id)}>
         <View style={styles.card}>
           {/* Horizontal layout: Image on left, content on right */}
@@ -129,17 +133,13 @@ export default function FavoritesListView({ favorites, onDelete, onToggleFavorit
           </View>
         </View>
       </Swipeable>
+      </SafeAreaView>
     );
   };
 
   if (favorites.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="heart-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyText}>No favorites yet</Text>
-        <Text style={styles.emptySubtext}>Properties you like will appear here</Text>
-      </View>
-    );
+    return <FavoritesEmptyPage />;
+    
   }
 
   return (
@@ -154,11 +154,74 @@ export default function FavoritesListView({ favorites, onDelete, onToggleFavorit
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
-    padding: 20,
-    backgroundColor: '#fff',
+    flex: 1,
+    backgroundColor: '#ffffff',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 30,
     marginTop: 18,
   },
+
+  backIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  image: {
+    width: 380,
+    height: 460,
+marginTop: 40,
+    marginBottom: 5,
+  },
+  title: {
+    fontSize: 30,
+    textAlign: 'center',
+    color: '#1e1e1e',
+    lineHeight: 42,
+    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+  },
+  progressBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    marginVertical: 20,
+  },
+  progressSegment: {
+    width: 20,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d3d3d3',
+  },
+  activeSegment: {
+    backgroundColor: '#0a84ff',
+    width: 40,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 130,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+  },
+ 
   card: {
     backgroundColor: '#F5F4F8',
     borderRadius: 16,
@@ -174,10 +237,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: 350,
     height: 150,
+    left:5,
+    right:50
   },
   cardContent: {
     flexDirection: 'row',
-    height: 200,
+    height: 150,
   },
   imageContainer: {
     position: 'relative',
@@ -236,7 +301,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1A2238',
     fontFamily: 'Montserrat_600SemiBold',
-    marginTop: -45, // Adjust this margin value to move the title higher
+    // marginTop: -45, // Adjust this margin value to move the title higher
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -279,7 +344,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: 140,
-    borderRadius: 16,
+    // borderTopLeftRadius:8,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
     marginBottom: 16,
     // marginLeft: -10,
   },
