@@ -234,7 +234,7 @@ export default function EstateDetails() {
             handleToggleFavorite={handleToggleFavorite}
             getImageSrc={getImageSrc}
           />
-          <PropertyImageGallery averageRating={averageRating} />
+          {/* <PropertyImageGallery averageRating={averageRating} /> */}
         </View>
 
         <View style={styles.infoRow}>

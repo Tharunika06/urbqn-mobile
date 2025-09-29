@@ -7,14 +7,15 @@ import {
   Image,
   FlatList,
   Dimensions,
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import Modal from 'react-native-modal';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Footer from '../../../components/Footer';
-
 const screenHeight = Dimensions.get('window').height;
 
 const initialChatData = [
@@ -97,6 +98,8 @@ const icons={
   );
 
   const renderItem = ({ item }: { item: any }) => (
+     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
     <Swipeable renderRightActions={() => renderRightActions(item.id)}>
       <Pressable
         style={styles.chatCard}
@@ -126,9 +129,12 @@ const icons={
         </View>
       </Pressable>
     </Swipeable>
+    </SafeAreaView>
   );
 
   return (
+     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
     <View style={styles.container}>
       {/* Top Section */}
       <View style={styles.topSection}>
@@ -160,8 +166,7 @@ const icons={
         showsVerticalScrollIndicator={false}
       />
 
-      <Footer />
-
+    
       {/* Confirmation Modal */}
       <Modal
         isVisible={isModalVisible}
@@ -188,12 +193,19 @@ const icons={
           </View>
         </View>
       </Modal>
+      
     </View>
+    <Footer/>
+    </SafeAreaView>
   );
 }
 
 // Styles
 const styles = StyleSheet.create({
+   safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

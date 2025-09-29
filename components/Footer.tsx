@@ -64,9 +64,10 @@ const styles = StyleSheet.create({
   footerNav: {
     position: 'absolute',
     bottom: -40,
-    left: 0,
+    left:0,
     right: 0,
     height: 100,
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',

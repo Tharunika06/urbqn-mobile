@@ -9,9 +9,10 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
+  
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,11 +26,11 @@ type Notification = {
   _id: string;
   type: string;
   title?: string;
-  message: string; // Admin message (technical)
-  userMessage?: string; // User-friendly message for mobile
+  message: string;
   userName?: string;
   userImage?: string;
   propertyName?: string;
+  propertyImage?: string;
   time: string;
   isRead: boolean;
 };
@@ -41,8 +42,8 @@ const icons = {
 
 const TABS: TabKey[] = ['All', 'Review', 'Sold', 'House', 'Villa', 'Rental'];
 
-// ✅ YOUR CORRECT API BASE URL (Note: removed /notification, kept /api)
-const API_BASE_URL = 'http://192.168.0.152:5000/api';
+// ✅ UPDATED: Using mobile-specific endpoint
+const API_BASE_URL = 'http://192.168.0.152:5000/api/notifications';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
@@ -52,8 +53,22 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch notifications from API with better error handling
+  // ✅ Fetch unread count for mobile
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mobile/unread-count`);
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.count);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
+  // ✅ UPDATED: Fetch notifications from MOBILE endpoint
   const fetchNotifications = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) {
@@ -61,11 +76,15 @@ export default function NotificationsScreen() {
         setError(null);
       }
       
-      const typeParam = activeTab !== 'All' ? `?type=${activeTab}` : '';
-      // ✅ This will call: http://192.168.0.152:5000/api/notifications
-      const url = `${API_BASE_URL}/notifications${typeParam}`;
+      // ✅ IMPORTANT: Use /mobile endpoint for mobile app
+      let url = `${API_BASE_URL}/mobile`;
       
-      console.log('🔄 Fetching from:', url);
+      // Filter by type if not "All"
+      if (activeTab !== 'All') {
+        url += `?type=${activeTab}`;
+      }
+      
+      console.log('🔄 Fetching mobile notifications from:', url);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -87,9 +106,19 @@ export default function NotificationsScreen() {
       }
       
       const data = await response.json();
-      console.log('✅ Notifications fetched:', data.length);
-      setNotifications(data);
+      console.log('✅ Mobile notifications fetched:', data.length);
+      
+      // Filter by tab on frontend if needed
+      let filteredData = data;
+      if (activeTab !== 'All') {
+        filteredData = data.filter((notif: Notification) => notif.type === activeTab);
+      }
+      
+      setNotifications(filteredData);
       setError(null);
+      
+      // Fetch unread count
+      fetchUnreadCount();
     } catch (error: any) {
       console.error('❌ Error fetching notifications:', error);
       
@@ -130,10 +159,10 @@ export default function NotificationsScreen() {
     fetchNotifications(false);
   };
 
+  // ✅ UPDATED: Delete notification
   const deleteNotification = async (id: string) => {
     try {
-      // ✅ DELETE: http://192.168.0.152:5000/api/notifications/:id
-      const response = await fetch(`${API_BASE_URL}/notifications/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -145,6 +174,7 @@ export default function NotificationsScreen() {
       }
 
       setNotifications(prev => prev.filter(notif => notif._id !== id));
+      fetchUnreadCount(); // Update count
       Alert.alert('Success', 'Notification deleted');
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -152,11 +182,11 @@ export default function NotificationsScreen() {
     }
   };
 
+  // ✅ UPDATED: Mark notification as read
   const markAsRead = async (id: string) => {
     try {
-      // ✅ PUT: http://192.168.0.152:5000/api/notifications/:id/read
-      const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
-        method: 'PUT',
+      const response = await fetch(`${API_BASE_URL}/${id}/read`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -168,10 +198,68 @@ export default function NotificationsScreen() {
             notif._id === id ? { ...notif, isRead: true } : notif
           )
         );
+        fetchUnreadCount(); // Update count
       }
     } catch (error) {
       console.error('Error marking as read:', error);
     }
+  };
+
+  // ✅ NEW: Mark all as read
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mobile/mark-all-read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setNotifications(prev =>
+          prev.map(notif => ({ ...notif, isRead: true }))
+        );
+        setUnreadCount(0);
+        Alert.alert('Success', 'All notifications marked as read');
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+      Alert.alert('Error', 'Failed to mark all as read');
+    }
+  };
+
+  // ✅ NEW: Clear all mobile notifications
+  const clearAllNotifications = async () => {
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to clear all notifications?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/mobile/clear`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              if (response.ok) {
+                setNotifications([]);
+                setUnreadCount(0);
+                Alert.alert('Success', 'All notifications cleared');
+              }
+            } catch (error) {
+              console.error('Error clearing notifications:', error);
+              Alert.alert('Error', 'Failed to clear notifications');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const getDefaultAvatar = (type: string) => {
@@ -233,7 +321,9 @@ export default function NotificationsScreen() {
           <View style={[styles.card, !item.isRead && styles.unreadCard]}>
             <Image
               source={
-                item.userImage
+                item.propertyImage
+                  ? { uri: item.propertyImage }
+                  : item.userImage
                   ? { uri: item.userImage }
                   : getDefaultAvatar(item.type)
               }
@@ -246,12 +336,12 @@ export default function NotificationsScreen() {
                 </Text>
                 <Text style={styles.timeText}>{timeAgo(item.time)}</Text>
               </View>
-              <Text style={styles.message} numberOfLines={2}>
+              <Text style={styles.message} numberOfLines={3}>
                 {item.message}
               </Text>
               {item.propertyName && (
                 <Text style={styles.propertyName} numberOfLines={1}>
-                  {item.propertyName}
+                  📍 {item.propertyName}
                 </Text>
               )}
             </View>
@@ -267,17 +357,37 @@ export default function NotificationsScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.container}>
         <View style={styles.topSection}>
-          <Pressable 
-            style={styles.iconCircle} 
-            onPress={() => navigation.goBack()}
-          >
-            <Image source={icons.backArrow} style={styles.icon} />
-          </Pressable>
+          <View style={styles.headerRow}>
+            <Pressable 
+              style={styles.iconCircle} 
+              onPress={() => navigation.goBack()}
+            >
+              <Image source={icons.backArrow} style={styles.icon} />
+            </Pressable>
+
+            {/* ✅ Action buttons */}
+            <View style={styles.headerActions}>
+              {unreadCount > 0 && (
+                <Pressable 
+                  style={styles.actionButton}
+                  onPress={markAllAsRead}
+                >
+                  <Ionicons name="checkmark-done-outline" size={20} color="#1e90ff" />
+                </Pressable>
+              )}
+              <Pressable 
+                style={styles.actionButton}
+                onPress={clearAllNotifications}
+              >
+                <Ionicons name="trash-outline" size={20} color="#ff4444" />
+              </Pressable>
+            </View>
+          </View>
 
           <View style={styles.segmentContainer}>
             <Pressable style={[styles.segmentButton, styles.activeSegment]}>
               <Text style={[styles.segmentText, styles.activeSegmentText]}>
-                Notification
+                Notification {unreadCount > 0 && `(${unreadCount})`}
               </Text>
             </Pressable>
 
@@ -359,8 +469,9 @@ export default function NotificationsScreen() {
           />
         )}
 
-        <Footer />
+        
       </View>
+      <Footer />
     </SafeAreaView>
   );
 }
@@ -376,8 +487,26 @@ const styles = StyleSheet.create({
   },
   topSection: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    marginBottom: 8,
+    paddingTop: 36,
+    marginBottom: 18,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f6f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   iconCircle: {
     width: 36,
@@ -386,7 +515,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f6f5f9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
   icon: {
     width: 16,

@@ -42,6 +42,10 @@ interface ProfileResponse {
   profile: ProfileData;
 }
 
+interface UnreadCountResponse {
+  count: number;
+}
+
 export default function Header({ userEmail, userName }: HeaderProps) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserData | null>(null);
@@ -51,11 +55,15 @@ export default function Header({ userEmail, userName }: HeaderProps) {
   const [loading, setLoading] = useState(true);
   const [profileExists, setProfileExists] = useState<boolean | null>(null);
   const [profileCheckComplete, setProfileCheckComplete] = useState(false);
+  
+  // Notification count state
+  const [notificationCount, setNotificationCount] = useState<number>(0);
 
   // New state to handle modal visibility
   const [isModalVisible, setModalVisible] = useState(false);
 
   const BASE_URL = "http://192.168.0.152:5000/api";
+  const NOTIFICATIONS_URL = "http://192.168.0.152:5000/api/notifications";
 
   // Get current user from AsyncStorage
   const getCurrentUser = async (): Promise<UserData | null> => {
@@ -93,6 +101,29 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     }
   };
 
+  // Fetch notification count from the mobile endpoint
+  const fetchNotificationCount = async () => {
+    try {
+      const response = await fetch(`${NOTIFICATIONS_URL}/mobile/unread-count`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data: UnreadCountResponse = await response.json();
+        setNotificationCount(data.count);
+      } else {
+        console.error('Failed to fetch notification count:', response.status);
+        setNotificationCount(0);
+      }
+    } catch (error) {
+      console.error("Error fetching notification count:", error);
+      setNotificationCount(0);
+    }
+  };
+
   // Navigate to profile creation with user info
   const navigateToProfileCreation = (user: UserData) => {
     router.push({
@@ -116,6 +147,11 @@ export default function Header({ userEmail, userName }: HeaderProps) {
       // No profile, show modal for profile creation
       setModalVisible(true);
     }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = () => {
+    router.push('/auth/notifications');
   };
 
   // Load user data and profile on component mount and focus
@@ -142,6 +178,7 @@ export default function Header({ userEmail, userName }: HeaderProps) {
         setCurrentUser(null);
         setProfileExists(false);
         setDisplayName(userName || userEmail || 'Guest');
+        setNotificationCount(0);
       }
 
       setProfileCheckComplete(true);
@@ -150,19 +187,23 @@ export default function Header({ userEmail, userName }: HeaderProps) {
       setDisplayName('Guest');
       setProfileExists(false);
       setProfileCheckComplete(true);
+      setNotificationCount(0);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch notifications whenever the component is focused
   useEffect(() => {
     loadUserData();
+    fetchNotificationCount();
   }, [userEmail, userName]);
 
   useFocusEffect(
     React.useCallback(() => {
       if (profileCheckComplete) {
         loadUserData();
+        fetchNotificationCount(); // Refresh notification count on focus
       }
     }, [profileCheckComplete])
   );
@@ -217,11 +258,16 @@ export default function Header({ userEmail, userName }: HeaderProps) {
         )}
       </View>
 
-      <Pressable style={styles.notificationWrapper} onPress={() => router.push('/auth/notifications')}>
+      <Pressable style={styles.notificationWrapper} onPress={handleNotificationClick}>
         <Image source={BellIcon} style={styles.bellIcon} />
-        <View style={styles.notificationBadge}>
-          <Text style={styles.badgeText}>2</Text>
-        </View>
+        {/* Only show badge if there are unread notifications */}
+        {notificationCount > 0 && (
+          <View style={styles.notificationBadge}>
+            <Text style={styles.badgeText}>
+              {notificationCount > 99 ? '99+' : notificationCount}
+            </Text>
+          </View>
+        )}
       </Pressable>
 
       {/* Modal for profile creation prompt */}
@@ -330,11 +376,12 @@ const styles = StyleSheet.create({
     top: -4,
     right: -4,
     backgroundColor: 'red',
-    width: 16,
+    minWidth: 16,
     height: 16,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   badgeText: {
     color: '#fff',
@@ -348,7 +395,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  // New styles for the modal
   modalContent: {
     backgroundColor: 'white',
     padding: 20,
@@ -395,5 +441,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
+  
 });
-

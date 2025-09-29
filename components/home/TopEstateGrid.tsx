@@ -172,7 +172,7 @@ export default function TopEstateGrid({ properties }: Props) {
 
 const styles = StyleSheet.create({
   section: {
-    marginBottom: 24,
+    marginBottom:-44,
   },
   sectionHeader: {
     flexDirection: 'row',

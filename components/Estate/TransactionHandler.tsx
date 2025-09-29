@@ -10,18 +10,20 @@ import {
   TextInput,
   KeyboardAvoidingView,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import GradientButton from '../Button/GradientButton';
 
 const API_BASE_URL = 'http://192.168.0.152:5000';
 
 interface UserProfile {
   _id?: string;
   firstName?: string;
-  lastName?: string;  // Added lastName field
+  lastName?: string;
   fullName?: string;
   phone?: string;
   phoneNumber?: string;
@@ -42,7 +44,6 @@ interface TransactionHandlerProps {
   isValid: boolean;
 }
 
-// Custom popup interface
 interface PopupConfig {
   visible: boolean;
   type: 'success' | 'error' | 'warning' | 'info';
@@ -67,7 +68,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   const [hasCompleteProfile, setHasCompleteProfile] = useState(false);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   
-  // Custom popup state
   const [popupConfig, setPopupConfig] = useState<PopupConfig>({
     visible: false,
     type: 'info',
@@ -82,7 +82,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     loadUserProfile();
   }, []);
 
-  // Custom popup function to replace Alert.alert
   const showPopup = (
     title: string, 
     message: string, 
@@ -102,9 +101,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     setPopupConfig(prev => ({ ...prev, visible: false }));
   };
 
-  // Helper function to construct full name from profile
   const getFullNameFromProfile = (profile: UserProfile): string => {
-    // Priority: fullName > firstName + lastName > firstName only
     if (profile.fullName?.trim()) {
       return profile.fullName.trim();
     }
@@ -116,10 +113,9 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       return `${firstName} ${lastName}`;
     }
     
-    return firstName; // Fallback to just firstName if lastName is missing
+    return firstName;
   };
 
-  // Get current user from AsyncStorage (similar to ViewProfile)
   const getCurrentUser = async () => {
     try {
       const userData = await AsyncStorage.getItem('user');
@@ -130,12 +126,10 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     }
   };
 
-  // Fetch profile using the same approach as ViewProfile
   const fetchUserProfile = async (email: string) => {
     try {
       console.log(`Fetching profile for user: ${email}`);
       
-      // Check if profile exists using the same endpoint as ViewProfile
       const checkResponse = await fetch(
         `${API_BASE_URL}/api/profiles/check-email/${encodeURIComponent(email)}`
       );
@@ -152,7 +146,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         return null;
       }
 
-      // Get all profiles and find current user's profile (same as ViewProfile)
       const profilesResponse = await fetch(
         `${API_BASE_URL}/api/profiles?includePhotos=true`
       );
@@ -179,7 +172,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     try {
       setIsLoadingProfile(true);
       
-      // First try to get user from AsyncStorage (same as ViewProfile)
       const user = await getCurrentUser();
       
       let currentUserEmail = null;
@@ -187,7 +179,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         currentUserEmail = user.email;
         console.log('User email from user object:', currentUserEmail);
       } else {
-        // Fallback to userEmail from AsyncStorage
         currentUserEmail = await AsyncStorage.getItem('userEmail');
         console.log('User email from storage:', currentUserEmail);
       }
@@ -200,7 +191,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
       setUserEmail(currentUserEmail);
 
-      // Try to get cached profile data
       const userData = await AsyncStorage.getItem('userProfile');
       console.log('Cached profile data exists:', !!userData);
       
@@ -217,7 +207,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
             
             console.log('Extracted from cached profile - Name:', name, 'Phone:', phone);
             
-            if (name && phone) {
+            if (name && phone && phone.length >= 10) {
               setHasCompleteProfile(true);
               setUserName(name);
               setUserPhone(phone);
@@ -237,7 +227,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         }
       }
 
-      // Fetch from API using the same approach as ViewProfile
       console.log('Fetching profile from API...');
       const profile = await fetchUserProfile(currentUserEmail);
       
@@ -246,7 +235,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         
         setUserProfile(profile);
         
-        // Save to AsyncStorage for future use
         await AsyncStorage.setItem('userProfile', JSON.stringify(profile));
         
         const name = getFullNameFromProfile(profile);
@@ -255,7 +243,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         console.log('Extracted from API profile - Name:', name, 'Phone:', phone);
         console.log('Profile fields - firstName:', profile.firstName, 'lastName:', profile.lastName, 'fullName:', profile.fullName);
         
-        if (name && phone) {
+        if (name && phone && phone.length >= 10) {
           setHasCompleteProfile(true);
           setUserName(name);
           setUserPhone(phone);
@@ -284,10 +272,15 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     return !isNaN(numericPrice) ? numericPrice : null;
   };
 
+  const validatePhoneNumber = (phone: string): boolean => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length === 10 && /^[0-9]{10}$/.test(cleanPhone);
+  };
+
   const handleBuyRentClick = () => {
     if (!displayMode) return;
     
-    if (hasCompleteProfile && userName.trim() && userPhone.trim()) {
+    if (hasCompleteProfile && userName.trim() && userPhone.trim() && validatePhoneNumber(userPhone)) {
       console.log('Profile complete, proceeding directly to payment');
       handlePayment();
     } else {
@@ -297,13 +290,24 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   };
 
   const handleProceedToPayment = () => {
-    if (!userName.trim()) {
-      showPopup('Validation Error', 'Please enter your name.', [
+    const trimmedName = userName.trim();
+    const trimmedPhone = userPhone.trim();
+
+    if (!trimmedName) {
+      showPopup('Validation Error', 'Please enter your full name.', [
         { text: 'OK', onPress: hidePopup }
       ], 'error');
       return;
     }
-    if (!userPhone.trim() || userPhone.trim().length < 10) {
+
+    if (trimmedName.length < 2) {
+      showPopup('Validation Error', 'Name must be at least 2 characters long.', [
+        { text: 'OK', onPress: hidePopup }
+      ], 'error');
+      return;
+    }
+
+    if (!validatePhoneNumber(trimmedPhone)) {
       showPopup('Validation Error', 'Please enter a valid 10-digit phone number.', [
         { text: 'OK', onPress: hidePopup }
       ], 'error');
@@ -319,7 +323,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     setIsProcessing(true);
 
     const price = displayMode === 'rent' ? parsePrice(property.rentPrice) : parsePrice(property.salePrice);
-    if (!price) {
+    if (!price || price <= 0) {
       showPopup('Error', 'Price is not available for this option.', [
         { text: 'OK', onPress: hidePopup }
       ], 'error');
@@ -328,47 +332,50 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     }
 
     try {
-      // 1. Create a payment intent
       const response = await fetch(`${API_BASE_URL}/api/payment/create-payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: price }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
       const { clientSecret, error: backendError } = await response.json();
       if (backendError || !clientSecret) {
         throw new Error(backendError || 'Failed to get payment client secret from server.');
       }
 
-      // 2. Initialize the Payment sheet
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'RealEstate App Inc.',
         paymentIntentClientSecret: clientSecret,
+        returnURL: 'your-app://stripe-redirect',
       });
+      
       if (initError) {
         throw new Error(`Payment sheet initialization failed: ${initError.message}`);
       }
 
-      // 3. Present the Payment sheet
       const { error: paymentError } = await presentPaymentSheet();
       if (paymentError) {
-        if (paymentError.code !== 'Canceled') {
-          throw new Error(`Payment failed: ${paymentError.message}`);
+        if (paymentError.code === 'Canceled') {
+          setShowCancelPopup(true);
+          setIsProcessing(false);
+          return;
         }
-        setShowCancelPopup(true);
-        setIsProcessing(false);
-        return;
+        throw new Error(`Payment failed: ${paymentError.message}`);
       }
 
-      // 4. Payment succeeded
-      await saveTransactionDetails(clientSecret, price, userName, userPhone);
+      await saveTransactionDetails(clientSecret, price, userName.trim(), userPhone.trim());
       await saveUserProfile();
 
       showPopup(
         'Payment Successful!',
-        `Your transaction for "${property.name}" was completed. Please take a moment to leave a review.`,
+        `Your transaction for "${property.name}" was completed successfully. Please take a moment to leave a review.`,
         [
           {
-            text: 'OK',
+            text: 'Leave Review',
             onPress: () => {
               hidePopup();
               if (property._id) {
@@ -382,13 +389,21 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
               }
             },
           },
+          {
+            text: 'Later',
+            onPress: () => {
+              hidePopup();
+              router.back();
+            },
+            style: 'cancel',
+          },
         ],
         'success'
       );
 
     } catch (error: any) {
-      console.error(error);
-      showPopup('Payment Error', error.message || 'An unexpected error occurred.', [
+      console.error('Payment error:', error);
+      showPopup('Payment Error', error.message || 'An unexpected error occurred during payment.', [
         { text: 'OK', onPress: hidePopup }
       ], 'error');
     } finally {
@@ -398,25 +413,27 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
   const saveUserProfile = async () => {
     try {
-      if (userName.trim() && userPhone.trim()) {
-        // Split the entered name into first and last name for saving
-        const nameParts = userName.trim().split(' ');
+      const trimmedName = userName.trim();
+      const trimmedPhone = userPhone.trim();
+      
+      if (trimmedName && trimmedPhone) {
+        const nameParts = trimmedName.split(' ');
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
         
-        const profileData = {
+        const profileData: UserProfile = {
+          ...userProfile,
           firstName: firstName,
           lastName: lastName,
-          fullName: userName.trim(), // Also save as fullName for convenience
-          phone: userPhone.trim(),
+          fullName: trimmedName,
+          phone: trimmedPhone,
           email: userEmail,
-          ...userProfile,
         };
         
         await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
         setUserProfile(profileData);
         setHasCompleteProfile(true);
-        console.log('User profile saved/updated');
+        console.log('User profile saved/updated successfully');
       }
     } catch (error) {
       console.error('Error saving user profile:', error);
@@ -427,11 +444,12 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     try {
       if (!property._id) {
         console.error("Critical Error: Property _id is missing. Cannot save transaction.");
-        showPopup("Error", "Could not save transaction because of a data issue.", [
+        showPopup("Error", "Could not save transaction due to missing property information.", [
           { text: 'OK', onPress: hidePopup }
         ], 'error');
         return;
       }
+      
       const transactionDetails = {
         id: clientSecret.split('_secret')[0], 
         customerName: name,
@@ -439,24 +457,30 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         customerEmail: userEmail,
         paymentMethod: 'card',
         amount: amount,
+        currency: 'INR',
         property: { id: property._id, name: property.name },
         ownerName: property.ownerName,
+        transactionType: displayMode,
+        timestamp: new Date().toISOString(),
       };
+      
       const response = await fetch(`${API_BASE_URL}/api/payment/save-transaction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionDetails }),
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `Server returned an error: ${response.status}`);
       }
-      console.log("Transaction details successfully sent to the server.");
+      
+      console.log("Transaction details successfully saved to server.");
     } catch (error: any) {
       console.error("Failed to save transaction on server:", error);
       showPopup(
         "Save Error", 
-        `Your payment was successful, but we failed to save the transaction record. Please contact support.\n\nDetails: ${error.message}`,
+        `Your payment was successful, but we couldn't save the transaction record. Please contact support with your payment confirmation.\n\nError: ${error.message}`,
         [{ text: 'OK', onPress: hidePopup }],
         'warning'
       );
@@ -468,13 +492,12 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     if (!displayMode) return 'Select Option';
     
     if (hasCompleteProfile) {
-      return `${displayMode === 'rent' ? 'Rent' : 'Buy'} `;
+      return displayMode === 'rent' ? 'Rent Now' : 'Buy Now';
     }
     
     return displayMode === 'rent' ? 'Rent Now' : 'Buy Now';
   };
 
-  // Get popup icon based on type
   const getPopupIcon = (type: PopupConfig['type']) => {
     switch (type) {
       case 'success':
@@ -511,7 +534,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     </Modal>
   );
 
-  // Custom popup component
   const CustomPopup = () => {
     if (!popupConfig.visible) return null;
     
@@ -557,34 +579,36 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
   return (
     <>
-      {/* Buy/Rent Button */}
       <View style={styles.buyWrapper}>
-        <Pressable
-          style={[ 
-            styles.buyCTA, 
-            (!isValid || !displayMode || isProcessing) && { backgroundColor: '#a5a5a5' },
-            hasCompleteProfile && styles.buyCtaWithProfile
-          ]}
-          disabled={!isValid || !displayMode || isProcessing}
+        <GradientButton
           onPress={handleBuyRentClick}
-        >
-          <Text style={styles.buyText}>
-            {getBuyButtonText()}
-          </Text>
-        </Pressable>
+          label={getBuyButtonText()}
+          colors={['#000000', '#474747']}
+          // disabled={!isValid || !displayMode || isProcessing}
+          buttonStyle={styles.buyCTA}
+          textStyle={styles.buyText}
+        />
       </View>
 
-      {/* Custom Cancel Payment Popup */}
       <CancelPaymentPopup />
-
-      {/* Custom Alert Popup */}
       <CustomPopup />
 
-      {/* User Info Modal */}
-      <Modal visible={showUserInfoModal} transparent={true} animationType="slide" onRequestClose={() => setShowUserInfoModal(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <Modal 
+        visible={showUserInfoModal} 
+        transparent={true} 
+        animationType="slide" 
+        onRequestClose={() => setShowUserInfoModal(false)}
+      >
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
+            <ScrollView 
+              style={styles.modalContent}
+              contentContainerStyle={styles.modalContentContainer}
+              keyboardShouldPersistTaps="handled"
+            >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
                   {userProfile ? 'Confirm Your Details' : 'Enter Your Details'}
@@ -608,7 +632,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
                 </View>
               )}
 
-              {userProfile && (
+              {userProfile && !isLoadingProfile && (
                 <View style={styles.profileNotice}>
                   <Ionicons name="information-circle" size={16} color="#1a73e8" />
                   <Text style={styles.profileNoticeText}>
@@ -636,6 +660,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
                   placeholder="Enter your full name" 
                   placeholderTextColor="#999" 
                   autoCapitalize="words"
+                  editable={!isLoadingProfile}
                 />
               </View>
 
@@ -644,23 +669,42 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
                 <TextInput 
                   style={styles.textInput} 
                   value={userPhone} 
-                  onChangeText={setUserPhone} 
+                  onChangeText={(text) => setUserPhone(text.replace(/\D/g, ''))} 
                   placeholder="Enter your 10-digit phone number" 
                   placeholderTextColor="#999" 
                   keyboardType="phone-pad" 
                   maxLength={10}
+                  editable={!isLoadingProfile}
                 />
+                {userPhone.length > 0 && userPhone.length < 10 && (
+                  <Text style={styles.validationHint}>
+                    {10 - userPhone.length} more digit{10 - userPhone.length !== 1 ? 's' : ''} required
+                  </Text>
+                )}
               </View>
 
               <View style={styles.modalActions}>
-                <Pressable style={styles.cancelButton} onPress={() => setShowUserInfoModal(false)}>
+                <Pressable 
+                  style={styles.cancelButton} 
+                  onPress={() => setShowUserInfoModal(false)}
+                  disabled={isLoadingProfile}
+                >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </Pressable>
-                <Pressable style={styles.proceedButton} onPress={handleProceedToPayment}>
-                  <Text style={styles.proceedButtonText}>Proceed to Payment</Text>
+                <Pressable 
+                  style={[
+                    styles.proceedButton,
+                    isLoadingProfile && styles.proceedButtonDisabled
+                  ]} 
+                  onPress={handleProceedToPayment}
+                  disabled={isLoadingProfile}
+                >
+                  <Text style={styles.proceedButtonText}>
+                    {isLoadingProfile ? 'Loading...' : 'Proceed to Payment'}
+                  </Text>
                 </Pressable>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -669,22 +713,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 }
 
 const styles = StyleSheet.create({
-  profileStatusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E8',
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  profileStatusText: {
-    marginLeft: 6,
-    fontSize: 12,
-    color: '#4CAF50',
-    fontFamily: 'Montserrat_400Regular',
-  },
   popupOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -703,6 +731,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
     minWidth: 280,
+    maxWidth: 340,
   },
   popupIconContainer: {
     marginBottom: 16,
@@ -754,9 +783,12 @@ const styles = StyleSheet.create({
   popupDestructiveButtonText: {
     color: '#fff',
   },
-  buyWrapper: { marginHorizontal: 10, marginTop: 5, marginBottom: 20 },
+  buyWrapper: { 
+    marginHorizontal: 10, 
+    marginTop: 5, 
+    marginBottom: -30 
+  },
   buyCTA: { 
-    backgroundColor: '#1a73e8', 
     paddingVertical: 14, 
     borderRadius: 14, 
     alignItems: 'center', 
@@ -768,18 +800,58 @@ const styles = StyleSheet.create({
     shadowRadius: 6, 
     elevation: 5 
   },
-  buyCtaWithProfile: {
-    backgroundColor: 'linear-gradient(to left, #0075FF, #4C9FFF)',
+  buyText: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600', 
+    fontFamily: 'Montserrat_600SemiBold' 
   },
-  buyText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
-  modalContainer: { flex: 1, justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 20, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#1a2238', fontFamily: 'Montserrat_700Bold' },
-  closeButton: { padding: 4 },
-  modalSubtitle: { fontSize: 14, color: '#666', marginBottom: 24, fontFamily: 'Montserrat_400Regular' },
-  emailContainer: { marginBottom: 20 },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    justifyContent: 'flex-end' 
+  },
+  modalContainer: { 
+    flex: 1, 
+    justifyContent: 'flex-end' 
+  },
+  modalContent: { 
+    backgroundColor: '#fff', 
+    borderTopLeftRadius: 24, 
+    borderTopRightRadius: 24,
+    maxHeight: '85%' 
+  },
+  modalContentContainer: {
+    paddingHorizontal: 20, 
+    paddingTop: 20, 
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+  },
+  modalHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 8 
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    color: '#1a2238', 
+    fontFamily: 'Montserrat_700Bold',
+    flex: 1,
+  },
+  closeButton: { 
+    padding: 4 
+  },
+  modalSubtitle: { 
+    fontSize: 14, 
+    color: '#666', 
+    marginBottom: 24, 
+    fontFamily: 'Montserrat_400Regular',
+    lineHeight: 20,
+  },
+  emailContainer: { 
+    marginBottom: 20 
+  },
   emailDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -795,15 +867,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1a73e8',
     fontFamily: 'Montserrat_500Medium',
+    flex: 1,
   },
-  inputContainer: { marginBottom: 20 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#1a2238', marginBottom: 8, fontFamily: 'Montserrat_600SemiBold' },
-  textInput: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#1a2238', fontFamily: 'Montserrat_400Regular', backgroundColor: '#f9f9f9' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  cancelButton: { flex: 1, backgroundColor: '#f3f3f3', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  cancelButtonText: { color: '#666', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
-  proceedButton: { flex: 2, backgroundColor: '#1a73e8', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  proceedButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
+  inputContainer: { 
+    marginBottom: 20 
+  },
+  inputLabel: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: '#1a2238', 
+    marginBottom: 8, 
+    fontFamily: 'Montserrat_600SemiBold' 
+  },
+  textInput: { 
+    borderWidth: 1, 
+    borderColor: '#e0e0e0', 
+    borderRadius: 12, 
+    paddingHorizontal: 16, 
+    paddingVertical: 14, 
+    fontSize: 16, 
+    color: '#1a2238', 
+    fontFamily: 'Montserrat_400Regular', 
+    backgroundColor: '#f9f9f9' 
+  },
+  validationHint: {
+    fontSize: 12,
+    color: '#ff9800',
+    marginTop: 4,
+    fontFamily: 'Montserrat_400Regular',
+  },
+  modalActions: { 
+    flexDirection: 'row', 
+    gap: 12, 
+    marginTop: 24 
+  },
+  cancelButton: { 
+    flex: 1, 
+    backgroundColor: '#f3f3f3', 
+    paddingVertical: 14, 
+    borderRadius: 12, 
+    alignItems: 'center' 
+  },
+  cancelButtonText: { 
+    color: '#666', 
+    fontSize: 16, 
+    fontWeight: '600', 
+    fontFamily: 'Montserrat_600SemiBold' 
+  },
+  proceedButton: { 
+    flex: 2, 
+    backgroundColor: '#1a73e8', 
+    paddingVertical: 14, 
+    borderRadius: 12, 
+    alignItems: 'center' 
+  },
+  proceedButtonDisabled: {
+    backgroundColor: '#93c5fd',
+    opacity: 0.6,
+  },
+  proceedButtonText: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600', 
+    fontFamily: 'Montserrat_600SemiBold' 
+  },
   profileNotice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -819,6 +946,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: 'Montserrat_400Regular',
   },
-  loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
-  loadingText: { marginLeft: 8, color: '#666', fontFamily: 'Montserrat_400Regular' },
+  loadingContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingVertical: 20 
+  },
+  loadingText: { 
+    marginLeft: 8, 
+    color: '#666', 
+    fontFamily: 'Montserrat_400Regular' 
+  },
 });

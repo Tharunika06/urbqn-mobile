@@ -1,9 +1,10 @@
 // urban/app/auth/Estate/PropertyHeader.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Image, StyleSheet, Pressable } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { EstateDetailsProps } from '../../app/auth/Estate/EstateDetails';
+import PropertyImageGallery from './PropertyImageGallery';
 
 interface PropertyHeaderProps {
   property: EstateDetailsProps['property'];
@@ -16,6 +17,13 @@ const icons = {
   backArrow: require('../../assets/icons/back-arrow.png'),
 };
 
+// Thumbnail images
+const thumbnailImages = [
+  require('../../assets/images/thumb1.png'),
+  require('../../assets/images/thumb2.png'),
+  require('../../assets/images/thumb3.png'),
+];
+
 export default function PropertyHeader({
   property,
   isFavorite,
@@ -23,12 +31,15 @@ export default function PropertyHeader({
   getImageSrc,
 }: PropertyHeaderProps) {
   const navigation = useNavigation();
-  const imageSource = getImageSrc(property.photo);
+  const [selectedImage, setSelectedImage] = useState<any>(null);
+  
+  // Use selected thumbnail or default to property photo
+  const displayImage = selectedImage || getImageSrc(property.photo);
 
   return (
     <View style={styles.imageWrapper}>
       <Image
-        source={imageSource}
+        source={displayImage}
         style={styles.mainImage}
         onError={() => console.warn('Failed to load property image:', property.name)}
         defaultSource={require('../../assets/images/placeholder.png')}
@@ -49,6 +60,13 @@ export default function PropertyHeader({
           </Pressable>
         </View>
       </View>
+      
+      {/* Pass the setSelectedImage function to gallery */}
+      <PropertyImageGallery 
+        averageRating={property.averageRating || 4.9}
+        onImageSelect={setSelectedImage}
+        thumbnailImages={thumbnailImages}
+      />
     </View>
   );
 }
