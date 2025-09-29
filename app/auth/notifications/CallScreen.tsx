@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, ImageSourcePropType, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router'; // Import useLocalSearchParams
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,9 +27,9 @@ const CallScreen: React.FC = () => {
     
     <View style={styles.container}>
       {/* Back Button */}
-      <TouchableOpacity style={styles.backButton} onPress={handleEndCall}>
+      <Pressable style={styles.backButton} onPress={handleEndCall}>
         <Ionicons name="arrow-back" size={24} color="#000" />
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Name (Use the passed 'name' parameter) */}
       <Text style={styles.name}>{name || 'Unknown User'}</Text>
@@ -58,7 +58,7 @@ const CallScreen: React.FC = () => {
         </View>
 
         {/* End Call Button with Gradient */}
-        <TouchableOpacity style={styles.endCallWrapper} onPress={handleEndCall}>
+        <Pressable style={styles.endCallWrapper} onPress={handleEndCall}>
           <LinearGradient
             colors={['#1e90ff', '#0090ff']}
             start={{ x: 0, y: 0 }}
@@ -68,7 +68,7 @@ const CallScreen: React.FC = () => {
             <Text style={styles.endCallText}>End Call</Text>
             <Ionicons name="call-outline" size={20} color="#a5d8ff" style={{ marginLeft: 8 }} />
           </LinearGradient>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
     </SafeAreaView>

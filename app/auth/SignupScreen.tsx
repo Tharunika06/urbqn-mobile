@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   Image,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Modal,
   Alert,
@@ -97,19 +97,19 @@ export default function SignupScreen() {
           value={password}
           onChangeText={setPassword}
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+        <Pressable onPress={() => setShowPassword(!showPassword)}>
           <Ionicons
             name={showPassword ? 'eye' : 'eye-off'}
             size={20}
             color="#6c757d"
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.checkboxContainer}>
-        <TouchableOpacity onPress={() => setAgree(!agree)}>
+        <Pressable onPress={() => setAgree(!agree)}>
           <Ionicons name={agree ? 'checkbox' : 'square-outline'} size={20} color="#000" />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={[textStyle, styles.checkboxText]}>
           {' '}By clicking the <Text style={[textStyle, styles.link]}>Register</Text> button, you agree to the public offer
         </Text>
@@ -128,20 +128,20 @@ export default function SignupScreen() {
 </View>
       {/* Social Login Buttons */}
       <View style={styles.socialButtons}>
-        <TouchableOpacity style={styles.socialBtn}>
+        <Pressable style={styles.socialBtn}>
           <Image source={require('../../assets/icons/apple.png')} style={styles.socialIcon} />
           <Text style={[textStyle, styles.socialBtnText]}>Continue with Apple</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity style={styles.socialBtn}>
+        <Pressable style={styles.socialBtn}>
           <Image source={require('../../assets/icons/google.png')} style={styles.socialIcon} />
           <Text style={[textStyle, styles.socialBtnText]}>Continue with Google</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity style={styles.socialBtn}>
+        <Pressable style={styles.socialBtn}>
           <Image source={require('../../assets/icons/facebook.png')} style={styles.socialIcon} />
           <Text style={[textStyle, styles.socialBtnText]}>Continue with Facebook</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Footer */}

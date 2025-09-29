@@ -1,7 +1,7 @@
 //components/Button/GradientButton.tsx
 import React, { ReactNode } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   GestureResponderEvent,
@@ -27,7 +27,7 @@ const GradientButton: React.FC<GradientButtonProps> = ({
   textStyle,
 }) => {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+    <Pressable onPress={onPress} activeOpacity={0.8}>
       <LinearGradient
         colors={colors}
         start={{ x: 0, y: 1 }}
@@ -36,7 +36,7 @@ const GradientButton: React.FC<GradientButtonProps> = ({
       >
         <Text style={[styles.buttonText, textStyle]}>{label}</Text>
       </LinearGradient>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

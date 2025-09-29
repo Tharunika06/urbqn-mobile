@@ -1,6 +1,6 @@
 // urban/app/auth/Estate/PropertyModeSelector.tsx
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 
 interface PropertyModeSelectorProps {
   displayMode: 'rent' | 'sale' | null;
@@ -16,22 +16,22 @@ export default function PropertyModeSelector({ displayMode, setDisplayMode }: Pr
   return (
     <View style={styles.rentBuyRow}>
       <View style={styles.leftButtons}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.rentBtn, displayMode === 'rent' ? styles.activeStatusBtn : styles.inactiveStatusBtn]}
           onPress={() => setDisplayMode('rent')}
         >
           <Text style={[displayMode === 'rent' ? styles.activeStatusText : styles.inactiveStatusText]}>Rent</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[styles.buyBtn, displayMode === 'sale' ? styles.activeStatusBtn : styles.inactiveStatusBtn]}
           onPress={() => setDisplayMode('sale')}
         >
           <Text style={[displayMode === 'sale' ? styles.activeStatusText : styles.inactiveStatusText]}>Buy</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
-      <TouchableOpacity>
+      <Pressable>
         <Image source={require('../../assets/icons/360.png')} style={styles.circleImage} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

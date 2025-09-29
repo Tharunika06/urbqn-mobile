@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 interface FilterTabsProps {
   active: string;
@@ -12,13 +12,13 @@ export default function FilterTabs({ active, setActive }: FilterTabsProps) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
       {filters.map((item) => (
-        <TouchableOpacity
+        <Pressable
           key={item}
           style={[styles.tab, active=== item && styles.activeTab]}
           onPress={() => setActive(item)}
         >
           <Text style={[styles.text, active === item && styles.activeText]}>{item}</Text>
-        </TouchableOpacity>
+        </Pressable>
       ))}
     </ScrollView>
   );

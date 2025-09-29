@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Image,
   FlatList,
   Dimensions,
@@ -91,14 +91,14 @@ const icons={
   };
 
   const renderRightActions = (id: string) => (
-    <TouchableOpacity onPress={() => openConfirmModal(id)} style={styles.deleteButton}>
+    <Pressable onPress={() => openConfirmModal(id)} style={styles.deleteButton}>
       <Ionicons name="trash-outline" size={24} color="#fff" />
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const renderItem = ({ item }: { item: any }) => (
     <Swipeable renderRightActions={() => renderRightActions(item.id)}>
-      <TouchableOpacity
+      <Pressable
         style={styles.chatCard}
         onPress={() =>
           // --- MODIFICATION START ---
@@ -124,7 +124,7 @@ const icons={
           <Text style={styles.chatTime}>{item.time}</Text>
           {item.online && <View style={styles.onlineDot} />}
         </View>
-      </TouchableOpacity>
+      </Pressable>
     </Swipeable>
   );
 
@@ -132,21 +132,21 @@ const icons={
     <View style={styles.container}>
       {/* Top Section */}
       <View style={styles.topSection}>
-         <TouchableOpacity style={styles.iconCircle} onPress={() => navigation.goBack()}>
+         <Pressable style={styles.iconCircle} onPress={() => navigation.goBack()}>
                          <Image source={icons.backArrow} style={styles.icon} />
-                       </TouchableOpacity>
+                       </Pressable>
        
 
         <View style={styles.segmentContainer}>
-          <TouchableOpacity
+          <Pressable
             style={styles.segmentButton}
             onPress={() => router.push('/auth/notifications')}
           >
             <Text style={styles.segmentText}>Notification</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.segmentButton, styles.activeSegment]}>
+          </Pressable>
+          <Pressable style={[styles.segmentButton, styles.activeSegment]}>
             <Text style={[styles.segmentText, styles.activeSegmentText]}>Messages</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -179,12 +179,12 @@ const icons={
           </Text>
           <Text style={styles.modalSubtitle}>This action can’t be undo</Text>
           <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+            <Pressable style={styles.cancelButton} onPress={() => setModalVisible(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.confirmButton} onPress={handleDelete}>
+            </Pressable>
+            <Pressable style={styles.confirmButton} onPress={handleDelete}>
               <Text style={styles.confirmText}>Confirm</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </Modal>

@@ -19,8 +19,7 @@ export default function EmptyFavorites() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+  
       
     <View style={styles.container}>
       <Image
@@ -31,7 +30,6 @@ export default function EmptyFavorites() {
       <Text style={styles.empText}>empty</Text>
       <Text style={styles.subText}>Click add button above to start exploring and choose your favorite estates. </Text>
     </View>
-    </SafeAreaView>
   );
 }
 
@@ -40,14 +38,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
+
   backIcon: {
     width: 24,
     height: 24,
@@ -60,12 +51,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
     padding: 8,
   },
-  image: {
-    width: 380,
-    height: 460,
-marginTop: 40,
-    marginBottom: 5,
-  },
+//   image: {
+//     width: 380,
+//     height: 460,
+// marginTop: 40,
+//     marginBottom: 5,
+//   },
   title: {
     fontSize: 30,
     textAlign: 'center',
@@ -101,20 +92,20 @@ marginTop: 40,
     fontSize: 16,
     fontFamily: 'SFPro', // ✅ Applied SF Pro font
   },
-  // container: {
-  //   flex: 1,
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  //   padding: 16,
-  //   backgroundColor: '#fff',
-  // },
-  // image: {
-  //   width: 180,
-  //   height: 180,
-  //   resizeMode: 'contain',
-  //   marginTop: -250,
-  //   marginBottom: 30,
-  // },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  image: {
+    width: 180,
+    height: 180,
+    resizeMode: 'contain',
+    marginTop: -250,
+    marginBottom: 30,
+  },
   text: {
     fontSize: 26,
     fontWeight: '600',

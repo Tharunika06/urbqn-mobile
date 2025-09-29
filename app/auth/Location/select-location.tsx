@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   StatusBar
 } from 'react-native';
@@ -23,12 +23,12 @@ export default function SelectLocationScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <Pressable onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/Home')}>
+        </Pressable>
+        <Pressable onPress={() => router.push('/(tabs)/Home')}>
           <Text style={styles.skip}>Skip</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Title */}
@@ -70,28 +70,28 @@ export default function SelectLocationScreen() {
           originWhitelist={['*']}
           style={styles.map}
         />
-        <TouchableOpacity
+        <Pressable
           style={styles.mapButton}
           onPress={() => router.push('/auth/Location/pick-location')}
         >
           <Text style={styles.mapButtonText}>SELECT ON MAP</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Location Detail */}
-      <TouchableOpacity style={styles.locationDetail}>
+      <Pressable style={styles.locationDetail}>
         <Ionicons name="location-sharp" size={18} color="#ff4081" />
         <Text style={styles.detailText}>Location detail</Text>
         <Ionicons name="chevron-forward" size={18} color="#aaa" style={{ marginLeft: 'auto' }} />
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Next Button */}
-      <TouchableOpacity
+      <Pressable
         style={styles.nextButton}
         onPress={() => router.push('/(tabs)/Home')}
       >
         <Text style={styles.nextButtonText}>Next</Text>
-      </TouchableOpacity>
+      </Pressable>
     </SafeAreaView>
   );
 }

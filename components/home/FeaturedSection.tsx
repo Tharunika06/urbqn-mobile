@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 
 interface FeaturedSectionProps {
   images: any[];
@@ -10,7 +10,7 @@ export default function FeaturedSection({ images }: FeaturedSectionProps) {
     <View style={styles.section}>
       <View style={styles.header}>
         <Text style={styles.title}>Featured</Text>
-        <TouchableOpacity><Text style={styles.seeAll}>See all</Text></TouchableOpacity>
+        <Pressable><Text style={styles.seeAll}>See all</Text></Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {images.map((imgSrc, index) => (

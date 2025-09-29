@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
   StatusBar,
@@ -20,7 +20,7 @@ export default function Page3() {
      <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
     <View style={styles.container}>
-           <TouchableOpacity
+           <Pressable
        style={styles.backButton}
        onPress={() => router.push('/auth/onboarding/page2')}
      >
@@ -28,7 +28,7 @@ export default function Page3() {
          source={require('../../../assets/icons/back-arrow.png')}
          style={styles.backIcon}
        />
-     </TouchableOpacity>
+     </Pressable>
 
       <Image
         source={require('../../../assets/images/house3.png')}
@@ -50,6 +50,8 @@ export default function Page3() {
   onPress={() => router.push('/auth/LoginScreen')}
   label="Next"
   colors={['#000000', '#474747']}
+   buttonStyle={styles.button}
+  textStyle={styles.buttonText}
  
 />
     </View>
@@ -115,7 +117,7 @@ marginTop: 40,
     paddingVertical: 12,
     paddingHorizontal: 130,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: -10,
   },
   buttonText: {
     color: '#fff',

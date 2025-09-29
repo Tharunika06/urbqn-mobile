@@ -1,6 +1,6 @@
 // urban/app/auth/Estate/PropertyHeader.tsx
 import React from 'react';
-import { View, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Image, StyleSheet, Pressable } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { EstateDetailsProps } from '../../app/auth/Estate/EstateDetails';
@@ -34,19 +34,19 @@ export default function PropertyHeader({
         defaultSource={require('../../assets/images/placeholder.png')}
       />
       <View style={styles.imageTopRow}>
-        <TouchableOpacity style={styles.iconCircle} onPress={() => navigation.goBack()}>
+        <Pressable style={styles.iconCircle} onPress={() => navigation.goBack()}>
           <Image source={icons.backArrow} style={styles.icon} />
-        </TouchableOpacity>
+        </Pressable>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <TouchableOpacity style={styles.iconCircle}>
+          <Pressable style={styles.iconCircle}>
             <Feather name="upload" size={18} color="#1a2238" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             style={[styles.iconCircle, isFavorite && styles.activeFav]}
             onPress={handleToggleFavorite}
           >
             <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={18} color={isFavorite ? '#fff' : '#1a2238'} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </View>

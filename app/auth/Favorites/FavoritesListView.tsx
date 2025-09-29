@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, Dimensions, StatusBar } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,9 +29,9 @@ type Props = {
 
 export default function FavoritesListView({ favorites, onDelete, onToggleFavorite }: Props) {
   const renderRightActions = (id: string | number) => (
-    <TouchableOpacity style={styles.deleteBox} onPress={() => onDelete(id)}>
+    <Pressable style={styles.deleteBox} onPress={() => onDelete(id)}>
       <Image source={require('../../../assets/icons/delete.png')} style={styles.deleteIcon} />
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const getPropertyTypeLabel = (status?: string) => {
@@ -80,7 +80,7 @@ export default function FavoritesListView({ favorites, onDelete, onToggleFavorit
               <Image source={item.image} style={styles.propertyImage} />
               
               {/* Heart Icon - Top Left Corner */}
-              <TouchableOpacity 
+              <Pressable 
                 style={styles.heartContainer}
                 onPress={() => onToggleFavorite && onToggleFavorite(item)}
               >
@@ -92,7 +92,7 @@ export default function FavoritesListView({ favorites, onDelete, onToggleFavorit
                 >
                   <Ionicons name="heart" size={18} color="#fff" />
                 </LinearGradient>
-              </TouchableOpacity>
+              </Pressable>
               
               {/* Property Type Badge - Bottom Left Corner */}
               <LinearGradient

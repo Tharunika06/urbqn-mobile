@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Dimensions,
   Alert,
@@ -95,7 +95,7 @@ export default function VerificationScreen({
 
       <View style={styles.modal}>
         {/* ⬅️ Custom back arrow image */}
-        <TouchableOpacity
+        <Pressable
           style={styles.backButton}
           onPress={() => router.push('./auth/LoginScreen')}
         >
@@ -103,7 +103,7 @@ export default function VerificationScreen({
             source={require('../../assets/icons/back-arrow.png')}
             style={styles.backIcon}
           />
-        </TouchableOpacity>
+        </Pressable>
 
         <Text style={styles.heading}>VERIFICATION</Text>
         <Text style={styles.description}>

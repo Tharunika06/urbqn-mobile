@@ -4,7 +4,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -97,7 +97,7 @@ const ReviewScreen: React.FC = () => {
             placeholderTextColor="#888"
           />
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.button, isSubmitting && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={isSubmitting}
@@ -107,7 +107,7 @@ const ReviewScreen: React.FC = () => {
             ) : (
               <Text style={styles.buttonText}>Save</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

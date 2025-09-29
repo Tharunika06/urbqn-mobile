@@ -5,7 +5,7 @@ import {
   StyleSheet,
   Image,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   ImageSourcePropType,
@@ -79,9 +79,9 @@ const ChatScreen = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <Pressable onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
+        </Pressable>
         <Image source={avatarSource} style={styles.avatar} />
         <View style={styles.userInfo}>
           <Text style={styles.name}>{name || 'User'}</Text>
@@ -92,7 +92,7 @@ const ChatScreen = () => {
 
         {/* --- MODIFICATION START --- */}
         {/* Update the call button to pass the current user's data */}
-        <TouchableOpacity
+        <Pressable
           onPress={() =>
             router.push({
               pathname: '/auth/notifications/CallScreen',
@@ -101,7 +101,7 @@ const ChatScreen = () => {
           }
         >
           <Ionicons name="call-outline" size={24} color="#000" />
-        </TouchableOpacity>
+        </Pressable>
         {/* --- MODIFICATION END --- */}
       </View>
 
@@ -134,9 +134,9 @@ const ChatScreen = () => {
           value={message}
           onChangeText={setMessage}
         />
-        <TouchableOpacity onPress={handleSend}>
+        <Pressable onPress={handleSend}>
           <Ionicons name="send" size={24} color="#007bff" />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

@@ -4,7 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Platform,
   Modal,
   TextInput,
@@ -500,12 +500,12 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
           <Text style={styles.popupMessage}>
             The payment process was not completed. You can try again whenever you're ready.
           </Text>
-          <TouchableOpacity 
+          <Pressable 
             style={styles.popupButton} 
             onPress={() => setShowCancelPopup(false)}
           >
             <Text style={styles.popupButtonText}>OK</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -529,7 +529,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
             
             <View style={styles.popupButtonsContainer}>
               {popupConfig.buttons.map((button, index) => (
-                <TouchableOpacity 
+                <Pressable 
                   key={index}
                   style={[
                     styles.popupButton,
@@ -546,7 +546,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
                   ]}>
                     {button.text}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -559,7 +559,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     <>
       {/* Buy/Rent Button */}
       <View style={styles.buyWrapper}>
-        <TouchableOpacity
+        <Pressable
           style={[ 
             styles.buyCTA, 
             (!isValid || !displayMode || isProcessing) && { backgroundColor: '#a5a5a5' },
@@ -571,7 +571,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
           <Text style={styles.buyText}>
             {getBuyButtonText()}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Custom Cancel Payment Popup */}
@@ -589,9 +589,9 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
                 <Text style={styles.modalTitle}>
                   {userProfile ? 'Confirm Your Details' : 'Enter Your Details'}
                 </Text>
-                <TouchableOpacity onPress={() => setShowUserInfoModal(false)} style={styles.closeButton}>
+                <Pressable onPress={() => setShowUserInfoModal(false)} style={styles.closeButton}>
                   <Ionicons name="close" size={24} color="#1a2238" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
               
               <Text style={styles.modalSubtitle}>
@@ -653,12 +653,12 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
               </View>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowUserInfoModal(false)}>
+                <Pressable style={styles.cancelButton} onPress={() => setShowUserInfoModal(false)}>
                   <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.proceedButton} onPress={handleProceedToPayment}>
+                </Pressable>
+                <Pressable style={styles.proceedButton} onPress={handleProceedToPayment}>
                   <Text style={styles.proceedButtonText}>Proceed to Payment</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>

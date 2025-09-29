@@ -1,6 +1,6 @@
 // components/StarRating.tsx
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface StarRatingProps {
@@ -23,7 +23,7 @@ const StarRating = ({
       {[...Array(maxRating)].map((_, index) => {
         const starNumber = index + 1;
         return (
-          <TouchableOpacity
+          <Pressable
             key={starNumber}
             onPress={() => onRatingChange(starNumber)}
             disabled={disabled}
@@ -35,7 +35,7 @@ const StarRating = ({
               color={starNumber <= rating ? '#FFD700' : '#A9A9A9'}
               style={styles.star}
             />
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>

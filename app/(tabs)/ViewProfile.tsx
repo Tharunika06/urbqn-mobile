@@ -5,7 +5,7 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Image,
   Alert,
   ScrollView,
@@ -424,12 +424,12 @@ export default function ViewProfile() {
       <SafeAreaView style={[styles.safeArea, styles.centerContent]}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <Text style={styles.errorText}>Please log in to view your profile</Text>
-        <TouchableOpacity 
+        <Pressable 
           style={styles.loginButton} 
           onPress={() => router.push('/auth/LoginScreen')}
         >
           <Text style={styles.loginButtonText}>Go to Login</Text>
-        </TouchableOpacity>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -442,11 +442,11 @@ export default function ViewProfile() {
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <Pressable onPress={handleGoBack} style={styles.backButton}>
               <Icon name="arrow-left" size={24} color="#007AFF" />
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.title}>My Profile</Text>
-            <TouchableOpacity 
+            <Pressable 
               onPress={isEditing ? handleCancel : handleEdit} 
               style={styles.editIcon}
             >
@@ -455,12 +455,12 @@ export default function ViewProfile() {
                 size={20} 
                 color={isEditing ? "#FF6B6B" : "#007AFF"} 
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Profile Photo */}
           <View style={styles.photoContainer}>
-            <TouchableOpacity 
+            <Pressable 
               onPress={handlePhotoSelection}
               style={styles.photoWrapper}
               disabled={uploadingPhoto}
@@ -485,7 +485,7 @@ export default function ViewProfile() {
                   </View>
                 </>
               )}
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.photoHintText}>Tap to change photo</Text>
           </View>
 
@@ -540,7 +540,7 @@ export default function ViewProfile() {
 
           {/* Save Button */}
           {isEditing && (
-            <TouchableOpacity 
+            <Pressable 
               onPress={handleSave} 
               style={[styles.saveButton, saving && styles.saveButtonDisabled]}
               disabled={saving}
@@ -550,7 +550,7 @@ export default function ViewProfile() {
               ) : (
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </ScrollView>

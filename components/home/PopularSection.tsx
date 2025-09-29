@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Property {
@@ -25,14 +25,14 @@ export default function PopularSection({ properties, favorites, toggleFavorite }
     <View style={styles.section}>
       <View style={styles.header}>
         <Text style={styles.title}>Popular</Text>
-        <TouchableOpacity><Text style={styles.seeAll}>See all</Text></TouchableOpacity>
+        <Pressable><Text style={styles.seeAll}>See all</Text></Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {properties.map((property) => (
-          <TouchableOpacity key={property.id} style={styles.card}>
+          <Pressable key={property.id} style={styles.card}>
             <View style={styles.imageWrapper}>
               <Image source={property.image} style={styles.image} />
-              <TouchableOpacity
+              <Pressable
                 onPress={() => toggleFavorite(property.id)}
                 style={[
                   styles.favoriteBtn,
@@ -44,7 +44,7 @@ export default function PopularSection({ properties, favorites, toggleFavorite }
                   size={16}
                   color={favorites.includes(property.id) ? '#fff' : '#ef4444'}
                 />
-              </TouchableOpacity>
+              </Pressable>
               <View style={styles.categoryBadge}>
                 <Text style={styles.categoryText}>{property.category}</Text>
               </View>
@@ -64,7 +64,7 @@ export default function PopularSection({ properties, favorites, toggleFavorite }
                 <Text style={styles.priceUnit}>/{property.price.split('/')[1]}</Text>
               </View>
             </View>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </ScrollView>
     </View>

@@ -5,7 +5,7 @@ import {
   Text,
   StyleSheet,
   Image,
-  TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -90,9 +90,9 @@ export default function TopEstateGrid({ properties }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.title}>Top Estates</Text>
-        <TouchableOpacity onPress={() => setShowAll(!showAll)}>
+        <Pressable onPress={() => setShowAll(!showAll)}>
           <Text style={styles.seeAll}>{showAll ? 'See less' : 'See all'}</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.grid}>
@@ -103,7 +103,7 @@ export default function TopEstateGrid({ properties }: Props) {
           const imageSource = getImageSrc(property.photo);
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={`property-${safeId}`}
               style={styles.card}
               onPress={() => {
@@ -128,12 +128,12 @@ export default function TopEstateGrid({ properties }: Props) {
                   }}
                   defaultSource={require('../../assets/images/placeholder.png')}
                 />
-                <TouchableOpacity
+                <Pressable
                   onPress={() => toggleFavorite(property)}
                   style={[styles.favoriteBtn, { backgroundColor: isFavorited ? '#ef4444' : '#fff' }]}
                 >
                   <Ionicons name="heart" size={16} color={isFavorited ? '#fff' : '#ef4444'} />
-                </TouchableOpacity>
+                </Pressable>
                 <View style={styles.priceTag}>
                   <GradientButton
                     onPress={() => {}}
@@ -162,7 +162,7 @@ export default function TopEstateGrid({ properties }: Props) {
                 <Ionicons name="location-sharp" size={12} color="#858585" style={{ marginLeft: 8 }} />
                 <Text style={styles.locationText}>{property.country}</Text>
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>

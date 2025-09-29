@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   Image,
   Dimensions,
@@ -36,7 +36,7 @@ export default function PreferableType() {
   const renderItem = ({ item }: { item: typeof propertyTypes[0] }) => {
     const isSelected = selected.includes(item.id);
     return (
-      <TouchableOpacity
+      <Pressable
         style={[styles.card, isSelected && styles.selectedCard]}
         onPress={() => toggleSelection(item.id)}
         activeOpacity={0.9}
@@ -50,7 +50,7 @@ export default function PreferableType() {
         <Text style={[styles.cardLabel, isSelected && styles.selectedText]}>
           {item.name}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -59,12 +59,12 @@ export default function PreferableType() {
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <Pressable onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <TouchableOpacity>
+        </Pressable>
+        <Pressable>
           <Text style={styles.skip}>Skip</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Title */}
@@ -87,9 +87,9 @@ export default function PreferableType() {
       />
 
       {/* Next Button */}
-      <TouchableOpacity style={styles.nextButton} onPress={() => router.push('/(tabs)/Profile')}>
+      <Pressable style={styles.nextButton} onPress={() => router.push('/(tabs)/Profile')}>
         <Text style={styles.nextButtonText}>Next</Text>
-      </TouchableOpacity>
+      </Pressable>
     </SafeAreaView>
   );
 }

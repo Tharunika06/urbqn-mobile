@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Dimensions,
   Alert,
@@ -78,7 +78,7 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
 
       <View style={styles.modal}>
         {/* 🔙 Custom back arrow */}
-        <TouchableOpacity
+        <Pressable
           style={styles.backButton}
           onPress={() => router.push('./auth/LoginScreen')}
         >
@@ -86,7 +86,7 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
             source={require('../../assets/icons/back-arrow.png')}
             style={styles.backIcon}
           />
-        </TouchableOpacity>
+        </Pressable>
 
         <Text style={styles.heading}>RESET PASSWORD</Text>
         <Text style={styles.description}>
@@ -107,7 +107,7 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
             onChangeText={setNewPassword}
             style={styles.input}
           />
-          <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
+          <Pressable onPress={() => setShowNewPassword(!showNewPassword)}>
             <Image
               source={
                 showNewPassword
@@ -116,7 +116,7 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
               }
               style={{ width: 20, height: 20, tintColor: '#6c757d' }}
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Confirm Password */}
@@ -133,7 +133,7 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
             onChangeText={setConfirmPassword}
             style={styles.input}
           />
-          <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+          <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
             <Image
               source={
                 showConfirmPassword
@@ -142,7 +142,7 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
               }
               style={{ width: 20, height: 20, tintColor: '#6c757d' }}
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Submit Button */}

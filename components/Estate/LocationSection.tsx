@@ -1,6 +1,6 @@
 // urban/app/auth/Estate/LocationSection.tsx
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { EstateDetailsProps } from '../../app/auth/Estate/EstateDetails';
 
@@ -26,14 +26,14 @@ export default function LocationSection({ address, handleViewOnMap }: LocationSe
             <Image source={require('../../assets/icons/location-pin.png')} style={styles.addressIcon} />
             <Text style={[textStyle, styles.addressText]}>{address}</Text>
           </View>
-          <TouchableOpacity style={styles.distanceBox}>
+          <Pressable style={styles.distanceBox}>
             <Ionicons name="location" size={16} color="#f24e6f" />
             <View style={{ flex: 1, flexDirection: 'row' }}>
               <Text style={styles.distanceValue}>2.5 km </Text>
               <Text style={styles.distanceDesc}>from your location</Text>
             </View>
             <Feather name="chevron-down" size={16} color="#1a2238" />
-          </TouchableOpacity>
+          </Pressable>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.facilityScroll}>
             <View style={styles.facilityPill}><Text style={[textStyle, styles.pillText]}>2 Hospital</Text></View>
             <View style={styles.facilityPill}><Text style={[textStyle, styles.pillText]}>4 Gas stations</Text></View>
@@ -44,9 +44,9 @@ export default function LocationSection({ address, handleViewOnMap }: LocationSe
 
       <View style={styles.mapWrapper}>
         <Image source={mapPreview} style={styles.mapPreview} />
-        <TouchableOpacity style={styles.viewAllMapBtn} onPress={handleViewOnMap}>
+        <Pressable style={styles.viewAllMapBtn} onPress={handleViewOnMap}>
           <Text style={styles.viewAllMapText}>View all on map</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </>
   );

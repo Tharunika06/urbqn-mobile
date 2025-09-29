@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import FavoritesEmptyPage from '../Favorites/FavoriteEmpty';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 type PropertyType = {
   id: string | number;
   title: string;
@@ -24,50 +24,30 @@ type Props = {
 };
 
 export default function FavoritesGridView({ favorites, onDelete, onToggleFavorite }: Props) {
-  // const getPropertyTypeLabel = (status?: string) => {
-  //   switch (status?.toLowerCase()) {
-  //     case 'rent':
-  //       return 'Apartment';
-  //     case 'sale':
-  //       return 'House';
-  //     case 'both':
-  //       return 'Property';
-  //     default:
-  //       return 'Property';
-  //   }
-  // };
-
-  // const getPropertyTypeColor = (status?: string) => {
-  //   switch (status?.toLowerCase()) {
-  //     case 'rent':
-  //       return '#5a8dc7ff';
-  //     case 'sale':
-  //       return '#5a8dc7ff';
-  //     case 'both':
-  //       return '#5a8dc7ff';
-  //     default:
-  //       return '#5a8dc7ff';
-  //   }
-  // };
+  const handleHeartPress = (item: PropertyType) => {
+    // Remove from favorites when heart is clicked
+    onDelete(item.id);
+    
+    // Also call onToggleFavorite if provided (for additional logic)
+    if (onToggleFavorite) {
+      onToggleFavorite(item);
+    }
+  };
 
   const renderItem = ({ item }: { item: PropertyType }) => {
     const rating = item.originalProperty?.rating || 4.9;
     const location = item.originalProperty?.country || 'Location';
-    // const propertyType = getPropertyTypeLabel(item.originalProperty?.status);
-    // const propertyTypeColor = getPropertyTypeColor(item.originalProperty?.status);
 
     return (
-      <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
       <View style={styles.card}>
         <View style={styles.imageContainer}>
-          <Image source={item.image} style={styles.image} />
+          <Image source={item.image} style={styles.cardImage} />
           
-          {/* Heart Icon - Top Right Corner */}
+          {/* Heart Icon - Top Right Corner - Now removes from favorites */}
           <TouchableOpacity 
             style={styles.heartIcon} 
-            onPress={() => onToggleFavorite && onToggleFavorite(item)}
+            onPress={() => handleHeartPress(item)}
+            activeOpacity={0.7}
           >
             <LinearGradient
               colors={['#FF4995', '#D6034F']}
@@ -77,13 +57,16 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
             </LinearGradient>
           </TouchableOpacity>
           
-          {/* Property Type Badge - Bottom Left Corner */}
-          {/* <LinearGradient
-            colors={['#0075FF', '#4C9FFF']}
-            style={styles.propertyBadge}
+          {/* Delete Icon - Top Left Corner - Alternative delete option */}
+          <TouchableOpacity 
+            style={styles.deleteIcon} 
+            onPress={() => onDelete(item.id)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.propertyBadgeText}>{propertyType}</Text>
-          </LinearGradient> */}
+            <View style={styles.deleteBackground}>
+              <Ionicons name="trash-outline" size={14} color="#FF4444" />
+            </View>
+          </TouchableOpacity>
           
           {/* Price Tag - Bottom Right Corner */}
           <LinearGradient
@@ -98,7 +81,7 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
         </View>
         
         <View style={styles.cardContent}>
-          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
           
           <View style={styles.bottomRow}>
             <View style={styles.ratingContainer}>
@@ -107,18 +90,16 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
             </View>
             <View style={styles.locationContainer}>
               <Ionicons name="location-outline" size={12} color="#666" />
-              <Text style={styles.location}>{location}</Text>
+              <Text style={styles.location} numberOfLines={1}>{location}</Text>
             </View>
           </View>
         </View>
       </View>
-      </SafeAreaView>
     );
   };
 
   if (favorites.length === 0) {
     return <FavoritesEmptyPage />;
-    
   }
 
   return (
@@ -128,121 +109,57 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
       keyExtractor={(item) => item.id.toString()}
       numColumns={2}
       columnWrapperStyle={styles.row}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={styles.listContainer}
       showsVerticalScrollIndicator={false}
+      style={styles.flatList}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  flatList: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  // container: {
-  //   flex: 1,
-  //   backgroundColor: '#ffffff',
-  //   justifyContent: 'space-between',
-  //   alignItems: 'center',
-  //   paddingHorizontal: 20,
-  //   paddingBottom: 30,
-  // },
-  backIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 10,
-    left: 20,
-    zIndex: 10,
-    padding: 8,
-  },
-  image: {
-    width: 380,
-    height: 460,
-marginTop: 40,
-    marginBottom: 5,
-  },
-  title: {
-    fontSize: 30,
-    textAlign: 'center',
-    color: '#1e1e1e',
-    lineHeight: 42,
-    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
-  },
-  progressBar: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 2,
-    marginVertical: 20,
-  },
-  progressSegment: {
-    width: 20,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#d3d3d3',
-  },
-  activeSegment: {
-    backgroundColor: '#0a84ff',
-    width: 40,
-  },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 130,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    fontFamily: 'SFPro', // ✅ Applied SF Pro font
-  },
-  container: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingTop: 34,
-    backgroundColor: '#Ffff',
+  listContainer: {
+    paddingHorizontal: 6,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   row: {
     justifyContent: 'space-between',
     marginBottom: 16,
   },
   card: {
-    width: '49%',
+    width: '48%',
     backgroundColor: '#F5F4F8',
     borderRadius: 16,
     overflow: 'hidden',
-    // shadowColor: '#000',
-    // shadowOffset: {
-    //   width: 0,
-    //   height: 2,
-    // },
-    // shadowOpacity: 0.1,
-    // shadowRadius: 8,
-    // elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   imageContainer: {
     position: 'relative',
-    marginLeft: 8,
-    // marginRight: 9,
-    marginTop: 8,
-    borderRadius: 18,
+    margin: 8,
+    borderRadius: 12,
     overflow: 'hidden',
-    width: '91%',
-    height: 160,
+    height: 140,
   },
-  // image: {
-  //   width: '100%',
-  //   height: '100%',
-  //   resizeMode: 'cover',
-  // },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   heartIcon: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 8,
+    right: 8,
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: {
@@ -254,29 +171,36 @@ marginTop: 40,
     elevation: 2,
   },
   heartGradient: {
-    padding: 8,
+    padding: 6,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  propertyBadge: {
+  deleteIcon: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    top: 8,
+    left: 8,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  propertyBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '600',
-    fontFamily: 'Montserrat_600SemiBold',
+  deleteBackground: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 5,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   priceTag: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    bottom: 8,
+    right: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -298,14 +222,15 @@ marginTop: 40,
   },
   cardContent: {
     padding: 12,
+    paddingTop: 8,
   },
-  // title: {
-  //   fontSize: 14,
-  //   fontFamily: 'Montserrat_600SemiBold',
-  //   color: '#1A2238',
-  //   marginBottom: 8,
-  //   lineHeight: 18,
-  // },
+  cardTitle: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#1A2238',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,24 +259,5 @@ marginTop: 40,
     color: '#666666',
     marginLeft: 2,
     flex: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A2238',
-    marginTop: 16,
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#666666',
-    marginTop: 4,
-    fontFamily: 'Montserrat_400Regular',
   },
 });

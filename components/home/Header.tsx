@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -193,7 +193,7 @@ export default function Header({ userEmail, userName }: HeaderProps) {
 
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={handleAvatarClick} style={styles.avatarContainer} disabled={loading}>
+      <Pressable onPress={handleAvatarClick} style={styles.avatarContainer} disabled={loading}>
         {loading ? (
           <View style={styles.avatarLoading}>
             <ActivityIndicator size="small" color="#007AFF" />
@@ -201,7 +201,7 @@ export default function Header({ userEmail, userName }: HeaderProps) {
         ) : (
           <Image source={getProfileImageSource()} style={getAvatarStyle()} />
         )}
-      </TouchableOpacity>
+      </Pressable>
 
       <View style={styles.greetingContainer}>
         <Greeting />
@@ -217,12 +217,12 @@ export default function Header({ userEmail, userName }: HeaderProps) {
         )}
       </View>
 
-      <TouchableOpacity style={styles.notificationWrapper} onPress={() => router.push('/auth/notifications')}>
+      <Pressable style={styles.notificationWrapper} onPress={() => router.push('/auth/notifications')}>
         <Image source={BellIcon} style={styles.bellIcon} />
         <View style={styles.notificationBadge}>
           <Text style={styles.badgeText}>2</Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Modal for profile creation prompt */}
       <Modal
@@ -233,13 +233,13 @@ export default function Header({ userEmail, userName }: HeaderProps) {
       >
         <View style={styles.modalBackground}>
           <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
+            <Pressable style={styles.closeButton} onPress={closeModal}>
               <Text style={styles.closeButtonText}>×</Text>
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.modalText}>Complete your profile to continue using the app.</Text>
-            <TouchableOpacity onPress={() => navigateToProfileCreation(currentUser!)} style={styles.modalButton}>
+            <Pressable onPress={() => navigateToProfileCreation(currentUser!)} style={styles.modalButton}>
               <Text style={styles.modalButtonText}>Create Profile</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </Modal>

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
   StatusBar,
@@ -19,7 +19,7 @@ export default function Page2() {
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
           
     <View style={styles.container}>
-      <TouchableOpacity
+      <Pressable
        style={styles.backButton}
        onPress={() => router.push('/auth/onboarding/page1')}
      >
@@ -27,7 +27,7 @@ export default function Page2() {
          source={require('../../../assets/icons/back-arrow.png')}
          style={styles.backIcon}
        />
-     </TouchableOpacity>
+     </Pressable>
 
       <Image
         source={require('../../../assets/images/house2.png')}
@@ -49,6 +49,8 @@ export default function Page2() {
   onPress={() => router.push('/auth/onboarding/page3')}
   label="Next"
   colors={['#000000', '#474747']}
+   buttonStyle={styles.button}
+  textStyle={styles.buttonText}
  
 />
     </View>
@@ -114,7 +116,7 @@ marginTop: 40,
     paddingVertical: 12,
     paddingHorizontal: 130,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: -10,
   },
   buttonText: {
     color: '#fff',

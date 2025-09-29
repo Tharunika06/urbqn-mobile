@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Dimensions,
  StatusBar,
@@ -82,12 +82,12 @@ export default function PickLocation() {
 
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconWrapper}>
+        <Pressable onPress={() => router.back()} style={styles.iconWrapper}>
           <Ionicons name="arrow-back" size={20} color="#000" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/Home')} style={styles.skipWrapper}>
+        </Pressable>
+        <Pressable onPress={() => router.push('/(tabs)/Home')} style={styles.skipWrapper}>
           <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Search Bar */}
@@ -111,12 +111,12 @@ export default function PickLocation() {
             keyExtractor={(item) => item.place_id.toString()}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => handleSelect(item)} style={styles.resultItem}>
+              <Pressable onPress={() => handleSelect(item)} style={styles.resultItem}>
                 <Ionicons name="location-outline" size={16} color="#1a73e8" style={{ marginRight: 6 }} />
                 <Text numberOfLines={2} style={styles.resultText}>
                   {item.display_name}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           />
         </View>
@@ -130,12 +130,12 @@ export default function PickLocation() {
 
       {/* Sticky Next Button */}
       <View style={styles.bottomButtonWrapper}>
-        <TouchableOpacity
+        <Pressable
           style={styles.nextButton}
           onPress={() => router.push('/auth/Location/preferable-type')}
         >
           <Text style={styles.CntButtonText}>Choose your Location</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );

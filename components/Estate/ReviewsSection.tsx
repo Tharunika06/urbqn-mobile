@@ -1,6 +1,6 @@
 // urban/app/auth/Estate/ReviewsSection.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Review } from '../../app/auth/Estate/EstateDetails';
 
@@ -99,7 +99,7 @@ export default function ReviewsSection({
             
             <View style={styles.popupButtonsContainer}>
               {popupConfig.buttons.map((button, index) => (
-                <TouchableOpacity 
+                <Pressable 
                   key={index}
                   style={[
                     styles.popupButton,
@@ -116,7 +116,7 @@ export default function ReviewsSection({
                   ]}>
                     {button.text}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -188,12 +188,12 @@ export default function ReviewsSection({
                 ))}
 
                 {reviews.length > 3 && (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.viewAllReviews}
                     onPress={handleViewAllReviews}
                   >
                     <Text style={styles.viewAllReviewsText}>View all {reviews.length} reviews</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
               </>
             ) : (

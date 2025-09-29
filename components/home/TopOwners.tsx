@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator, Pressable } from 'react-native';
 import axios from 'axios';
 
 interface Owner {
@@ -82,9 +82,9 @@ export default function TopEstateOwners() {
     <View style={styles.section}>
       <View style={styles.header}>
         <Text style={styles.title}>Top Estate Owners</Text>
-        <TouchableOpacity onPress={() => setShowAll(!showAll)}>
+        <Pressable onPress={() => setShowAll(!showAll)}>
           <Text style={styles.seeAll}>{showAll ? 'See less' : 'See all'}</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {ownersToShow.length > 0 ? (

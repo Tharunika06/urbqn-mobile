@@ -5,7 +5,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   Switch,
   Image,
   StyleSheet,
@@ -120,13 +120,13 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Pressable onPress={() => setShowPassword(!showPassword)}>
                   <Ionicons
                     name={showPassword ? 'eye' : 'eye-off'}
                     size={20}
                     color="#6c757d"
                   />
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
         <View style={styles.optionsRow}>
@@ -139,14 +139,14 @@ export default function LoginScreen() {
             />
             <Text style={styles.rememberText}>Remember Me</Text>
           </View>
-          <TouchableOpacity
+          <Pressable
             onPress={() => {
               setIsFromSignup(false);
               setShowForgotPassword(true);
             }}
           >
             <Text style={[textStyle,styles.forgotText]}>Forgot Password?</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
       <GradientButton
@@ -163,27 +163,27 @@ export default function LoginScreen() {
   </View>
 
         <View style={styles.socialButtons}>
-    <TouchableOpacity style={styles.socialBtn}>
+    <Pressable style={styles.socialBtn}>
       <Image source={require('../../assets/icons/apple.png')} style={styles.socialIcon} />
       <Text style={[textStyle, styles.socialBtnText]}>Continue with Apple</Text>
-    </TouchableOpacity>
+    </Pressable>
 
-    <TouchableOpacity style={styles.socialBtn}>
+    <Pressable style={styles.socialBtn}>
       <Image source={require('../../assets/icons/google.png')} style={styles.socialIcon} />
       <Text style={[textStyle, styles.socialBtnText]}>Continue with Google</Text>
-    </TouchableOpacity>
+    </Pressable>
 
-    <TouchableOpacity style={styles.socialBtn}>
+    <Pressable style={styles.socialBtn}>
       <Image source={require('../../assets/icons/facebook.png')} style={styles.socialIcon} />
       <Text style={[textStyle, styles.socialBtnText]}>Continue with Facebook</Text>
-    </TouchableOpacity>
+    </Pressable>
   </View>
 
         <View style={styles.signupRow}>
           <Text style={[textStyle,styles.footer]}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/auth/SignupScreen')}>
+          <Pressable onPress={() => router.push('/auth/SignupScreen')}>
             <Text style={styles.link}>Sign up</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Modals */}
@@ -229,7 +229,7 @@ export default function LoginScreen() {
                 style={styles.successImage}
               />
               <Text style={styles.successText}>SUCCESSFULLY LOGGED IN</Text>
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   setShowSuccessModal(false);
                   router.push('/(tabs)/Home');
@@ -237,7 +237,7 @@ export default function LoginScreen() {
                 style={styles.successButton}
               >
                 <Text style={styles.successButtonText}>Continue</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Modal>

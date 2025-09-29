@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Image, StyleSheet, Pressable } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Footer() {
   const router = useRouter();
@@ -21,9 +22,10 @@ export default function Footer() {
   }, [pathname]);
 
   return (
+    <SafeAreaView >
     <View style={styles.footerNav}>
       {/* Home Tab */}
-      <TouchableOpacity
+      <Pressable
         onPress={() => {
           setActiveTab('home'); // Update active tab
           router.push('/(tabs)/Home');
@@ -31,17 +33,17 @@ export default function Footer() {
       >
         <Image
           source={activeTab === 'home' ? require('../assets/icons/nav-home-active.png') : require('../assets/icons/nav-home.png')}
-          style={styles.navIcon}
+          style={styles.navHome}
         />
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Location Tab */}
-      <TouchableOpacity>
+      <Pressable>
                <Image source={require('../assets/icons/nav-location.png')} style={styles.navIcon} />
-             </TouchableOpacity>
+             </Pressable>
 
       {/* Favorites Tab */}
-      <TouchableOpacity
+      <Pressable
         onPress={() => {
           setActiveTab('favorites'); // Update active tab
           router.push('/auth/Favorites');
@@ -51,15 +53,17 @@ export default function Footer() {
           source={activeTab === 'favorites' ? require('../assets/icons/nav-heart-active.png') : require('../assets/icons/nav-heart.png')}
           style={styles.navIcon}
         />
-      </TouchableOpacity>
+      </Pressable>
     </View>
+    </SafeAreaView>
+   
   );
 }
 
 const styles = StyleSheet.create({
   footerNav: {
     position: 'absolute',
-    bottom: 0,
+    bottom: -40,
     left: 0,
     right: 0,
     height: 100,
@@ -76,10 +80,17 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   navIcon: {
-    width: 30,
-    height: 30,
-    // bottom:15,
+    width: 20,
+    height: 35,
+    // marginTop: 35,
+    bottom:15,
     resizeMode: 'contain',
     alignItems: 'center',
   },
+  navHome: {
+    width: 20,
+    height: 25,
+      bottom:15,
+
+  }
 });

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Dimensions,
   Alert,
@@ -72,12 +72,12 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
 
       <View style={styles.modal}>
         {/* ⬅️ Custom back arrow image */}
-        <TouchableOpacity style={styles.backButton} onPress={onClose}>
+        <Pressable style={styles.backButton} onPress={onClose}>
           <Image
             source={require('../../assets/icons/back-arrow.png')}
             style={styles.backIcon}
           />
-        </TouchableOpacity>
+        </Pressable>
 
         <Text style={styles.title}>FORGOT PASSWORD</Text>
         <Text style={styles.description}>
@@ -95,7 +95,7 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
           />
         </View>
 
-        <TouchableOpacity disabled={loading}>
+        <Pressable disabled={loading}>
     <GradientButton
   onPress={handleSendOTP}
   label="Continue"
@@ -106,7 +106,7 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
               {loading ? 'Sending OTP...' : 'Continue'}
             </Text>
           
-        </TouchableOpacity>
+        </Pressable>
 
         <Text style={styles.legalText}>
           By continuing, you agree to Shopping{' '}
