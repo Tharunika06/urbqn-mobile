@@ -58,18 +58,7 @@ export default function Favorites() {
         <Pressable style={styles.iconCircle} onPress={() => navigation.goBack()}>
           <Image source={icons.backArrow} style={styles.icon} />
         </Pressable>
-
-        <Pressable style={styles.iconCircle} onPress={handleRefresh}>
-          <Image source={icons.moreDots} style={styles.icon} />
-        </Pressable>
-      </View>
-
-      <View style={styles.bottomRow}>
-        <Text style={styles.title}>
-          <Text style={styles.bold}>{favoriteProperties.length}</Text> estates
-        </Text>
-
-        <View style={styles.viewDisplay}>
+<View style={styles.viewDisplay}>
           <Pressable onPress={() => setViewMode('list')}>
             <Image
               source={viewMode === 'list' ? icons.listActive : icons.listInactive}
@@ -83,6 +72,15 @@ export default function Favorites() {
             />
           </Pressable>
         </View>
+    
+      </View>
+
+      <View style={styles.bottomRow}>
+        <Text style={styles.title}>
+          <Text style={styles.bold}>{favoriteProperties.length}</Text>  Property
+        </Text>
+
+        
       </View>
     </View>
   );

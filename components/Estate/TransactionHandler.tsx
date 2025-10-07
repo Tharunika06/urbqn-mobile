@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import GradientButton from '../Button/GradientButton';
 
-const API_BASE_URL = 'http://192.168.0.152:5000';
+const API_BASE_URL = 'http://192.168.0.154:5000';
 
 interface UserProfile {
   _id?: string;
@@ -375,7 +375,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         `Your transaction for "${property.name}" was completed successfully. Please take a moment to leave a review.`,
         [
           {
-            text: 'Leave Review',
+            text: 'Ok',
             onPress: () => {
               hidePopup();
               if (property._id) {
@@ -389,14 +389,14 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
               }
             },
           },
-          {
-            text: 'Later',
-            onPress: () => {
-              hidePopup();
-              router.back();
-            },
-            style: 'cancel',
-          },
+          // {
+          //   text: 'Later',
+          //   onPress: () => {
+          //     hidePopup();
+          //     router.back();
+          //   },
+          //   style: 'cancel',
+          // },
         ],
         'success'
       );
@@ -452,8 +452,8 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       
       const transactionDetails = {
         id: clientSecret.split('_secret')[0], 
-        customerName: name,
-        customerPhone: phone,
+        customerName: userName,
+        customerPhone: userPhone,
         customerEmail: userEmail,
         paymentMethod: 'card',
         amount: amount,
@@ -763,6 +763,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 12,
     minWidth: 100,
+    marginRight:60
   },
   popupButtonText: {
     color: '#fff',

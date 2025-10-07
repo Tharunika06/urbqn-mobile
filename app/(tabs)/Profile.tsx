@@ -287,7 +287,7 @@ export default function Profile() {
 
       // ✅ Use correct endpoint and send as JSON
       const response = await axios.post(
-        "http://192.168.0.152:5000/api/profiles", // ✅ Correct endpoint
+        "http://192.168.0.154:5000/api/profiles", // ✅ Correct endpoint
         profileData,
         {
           headers: {
@@ -317,11 +317,11 @@ export default function Profile() {
                 gender: '',
                 photo: null,
               });
-              router.push('/(tabs)/Home');
+              router.push('/auth/LoginScreen');
             }
           }
         ],
-        'success'
+        'success' 
       );
 
     } catch (err: any) {

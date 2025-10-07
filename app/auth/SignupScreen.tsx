@@ -7,7 +7,6 @@ import {
   Pressable,
   StyleSheet,
   Modal,
-  Alert,
   Dimensions,
   StatusBar
 } from 'react-native';
@@ -17,8 +16,21 @@ import { Ionicons } from '@expo/vector-icons';
 import VerificationScreen from './VerificationScreen';
 import { useRouter } from 'expo-router';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
-import { Montserrat_400Regular } from '@expo-google-fonts/montserrat';
+import { Montserrat_400Regular, Montserrat_600SemiBold } from '@expo-google-fonts/montserrat';
 import GradientButton from '../../components/Button/GradientButton';
+
+interface PopupConfig {
+  visible: boolean;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  buttons: {
+    text: string;
+    onPress: () => void;
+    style?: 'default' | 'cancel' | 'destructive';
+  }[];
+}
+
 export default function SignupScreen() {
   const [agree, setAgree] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -27,11 +39,96 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
+  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+    buttons: []
+  });
+
   const [fontsLoaded] = useFonts({
     Montserrat_400Regular,
+    Montserrat_600SemiBold,
     BebasNeue_400Regular,
     SFPro: require('../../assets/fonts/SFPro-Regular.ttf'),
   });
+
+  const showPopup = (
+    title: string,
+    message: string,
+    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
+    type: PopupConfig['type'] = 'info'
+  ) => {
+    setPopupConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      buttons
+    });
+  };
+
+  const hidePopup = () => {
+    setPopupConfig(prev => ({ ...prev, visible: false }));
+  };
+
+  const getPopupIcon = (type: PopupConfig['type']) => {
+    switch (type) {
+      case 'success':
+        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
+      case 'error':
+        return { name: 'close-circle' as const, color: '#f44336' };
+      case 'warning':
+        return { name: 'warning' as const, color: '#ff9800' };
+      case 'info':
+      default:
+        return { name: 'information-circle' as const, color: '#1a73e8' };
+    }
+  };
+
+  const CustomPopup = () => {
+    if (!popupConfig.visible) return null;
+    
+    const icon = getPopupIcon(popupConfig.type);
+    
+    return (
+      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
+        <View style={styles.popupOverlay}>
+          <View style={styles.popupContainer}>
+            <View style={styles.popupIconContainer}>
+              <Ionicons name={icon.name} size={64} color={icon.color} />
+            </View>
+            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
+            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
+            
+            <View style={styles.popupButtonsContainer}>
+              {popupConfig.buttons.map((button, index) => (
+                <Pressable
+                  key={index}
+                  style={[
+                    styles.popupButton,
+                    button.style === 'cancel' && styles.popupCancelButton,
+                    button.style === 'destructive' && styles.popupDestructiveButton,
+                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
+                  ]} 
+                  onPress={button.onPress}
+                >
+                  <Text style={[
+                    styles.popupButtonText,
+                    button.style === 'cancel' && styles.popupCancelButtonText,
+                    button.style === 'destructive' && styles.popupDestructiveButtonText
+                  ]}>
+                    {button.text}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   const textStyle = {
     fontFamily: 'Montserrat_400Regular',
@@ -42,11 +139,17 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (!email || !password || !agree) {
-      return Alert.alert("Error", "Please fill all fields and agree to terms.");
+      showPopup(
+        'Error',
+        'Please fill all fields and agree to terms.',
+        [{ text: 'OK', onPress: hidePopup }],
+        'error'
+      );
+      return;
     }
 
     try {
-      const response = await fetch('http://192.168.0.152:5000/api/signup', {
+      const response = await fetch('http://192.168.0.154:5000/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -57,116 +160,131 @@ export default function SignupScreen() {
       if (response.ok) {
         setShowVerificationModal(true);
       } else {
-        Alert.alert('Signup Failed', result.error || 'Try again later');
+        showPopup(
+          'Signup Failed',
+          result.error || 'Try again later',
+          [{ text: 'OK', onPress: hidePopup }],
+          'error'
+        );
       }
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Network error. Please try again.');
+      showPopup(
+        'Error',
+        'Network error. Please try again.',
+        [{ text: 'OK', onPress: hidePopup }],
+        'error'
+      );
     }
   };
 
   return (
- <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-    <View style={styles.container}>
-      <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.title}>CREATE YOUR PLACE</Text>
-      <Text style={[textStyle, styles.subtitle]}>
-        Sign up now to gain access to member-only discounts and personalized recommendations.
-      </Text>
+      <View style={styles.container}>
+        <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.title}>CREATE YOUR PLACE</Text>
+        <Text style={[textStyle, styles.subtitle]}>
+          Sign up now to gain access to member-only discounts and personalized recommendations.
+        </Text>
 
-      <View style={styles.inputContainer}>
-        <Ionicons name="mail" size={20} color="#6c757d" style={styles.icon} />
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#6c757d"
-          style={[textStyle, styles.input]}
-          value={email}
-          onChangeText={setEmail}
-        />
-      </View>
-      
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed" size={20} color="#6c757d" style={styles.icon} />
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor="#6c757d"
-          secureTextEntry={!showPassword}
-          style={[textStyle, styles.input]}
-          value={password}
-          onChangeText={setPassword}
-        />
-        <Pressable onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons
-            name={showPassword ? 'eye' : 'eye-off'}
-            size={20}
-            color="#6c757d"
+        <View style={styles.inputContainer}>
+          <Ionicons name="mail" size={20} color="#6c757d" style={styles.icon} />
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor="#6c757d"
+            style={[textStyle, styles.input]}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
-        </Pressable>
-      </View>
+        </View>
 
-      <View style={styles.checkboxContainer}>
-        <Pressable onPress={() => setAgree(!agree)}>
-          <Ionicons name={agree ? 'checkbox' : 'square-outline'} size={20} color="#000" />
-        </Pressable>
-        <Text style={[textStyle, styles.checkboxText]}>
-          {' '}By clicking the <Text style={[textStyle, styles.link]}>Register</Text> button, you agree to the public offer
-        </Text>
-      </View>
-    <GradientButton
-  onPress={handleSignup}
-  label="Sign up"
-  colors={['#000000', '#474747']}
- 
-/>
+        <View style={styles.inputContainer}>
+          <Ionicons name="lock-closed" size={20} color="#6c757d" style={styles.icon} />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#6c757d"
+            secureTextEntry={!showPassword}
+            style={[textStyle, styles.input]}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <Pressable onPress={() => setShowPassword(!showPassword)}>
+            <Ionicons
+              name={showPassword ? 'eye' : 'eye-off'}
+              size={20}
+              color="#6c757d"
+            />
+          </Pressable>
+        </View>
 
-      <View style={styles.dividerRow}>
-  <Image source={require('../../assets/icons/left.png')} style={styles.lineImage} />
-  <Text style={[textStyle, styles.orText]}>Or continue with</Text>
-  <Image source={require('../../assets/icons/right.png')} style={styles.lineImage} />
-</View>
-      {/* Social Login Buttons */}
-      <View style={styles.socialButtons}>
-        <Pressable style={styles.socialBtn}>
-          <Image source={require('../../assets/icons/apple.png')} style={styles.socialIcon} />
-          <Text style={[textStyle, styles.socialBtnText]}>Continue with Apple</Text>
-        </Pressable>
-
-        <Pressable style={styles.socialBtn}>
-          <Image source={require('../../assets/icons/google.png')} style={styles.socialIcon} />
-          <Text style={[textStyle, styles.socialBtnText]}>Continue with Google</Text>
-        </Pressable>
-
-        <Pressable style={styles.socialBtn}>
-          <Image source={require('../../assets/icons/facebook.png')} style={styles.socialIcon} />
-          <Text style={[textStyle, styles.socialBtnText]}>Continue with Facebook</Text>
-        </Pressable>
-      </View>
-
-      {/* Footer */}
-      <View style={styles.footerRow}>
-        <Text style={[textStyle, styles.footer]}>
-          Already have an account?{' '}
-          <Text style={styles.link} onPress={() => router.push('/auth/LoginScreen')}>
-            Log In
+        <View style={styles.checkboxContainer}>
+          <Pressable onPress={() => setAgree(!agree)}>
+            <Ionicons name={agree ? 'checkbox' : 'square-outline'} size={20} color="#000" />
+          </Pressable>
+          <Text style={[textStyle, styles.checkboxText]}>
+            {' '}By clicking the <Text style={[textStyle, styles.link]}>Register</Text> button, you agree to the public offer
           </Text>
-        </Text>
-      </View>
+        </View>
 
-      {/* Verification Modal */}
-      <Modal visible={showVerificationModal} animationType="slide" transparent>
-        <VerificationScreen
-          onClose={() => setShowVerificationModal(false)}
-          onContinue={() => {
-            setShowVerificationModal(false);
-            router.push('/auth/Location/select-location');
-          }}
-          isFromSignup={true}
-          email={email}
+        <GradientButton
+          onPress={handleSignup}
+          label="Sign up"
+          colors={['#000000', '#474747']}
         />
-      </Modal>
-    </View>
+
+        <View style={styles.dividerRow}>
+          <Image source={require('../../assets/icons/left.png')} style={styles.lineImage} />
+          <Text style={[textStyle, styles.orText]}>Or continue with</Text>
+          <Image source={require('../../assets/icons/right.png')} style={styles.lineImage} />
+        </View>
+
+        {/* Social Login Buttons */}
+        <View style={styles.socialButtons}>
+          <Pressable style={styles.socialBtn}>
+            <Image source={require('../../assets/icons/apple.png')} style={styles.socialIcon} />
+            <Text style={[textStyle, styles.socialBtnText]}>Continue with Apple</Text>
+          </Pressable>
+
+          <Pressable style={styles.socialBtn}>
+            <Image source={require('../../assets/icons/google.png')} style={styles.socialIcon} />
+            <Text style={[textStyle, styles.socialBtnText]}>Continue with Google</Text>
+          </Pressable>
+
+          <Pressable style={styles.socialBtn}>
+            <Image source={require('../../assets/icons/facebook.png')} style={styles.socialIcon} />
+            <Text style={[textStyle, styles.socialBtnText]}>Continue with Facebook</Text>
+          </Pressable>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footerRow}>
+          <Text style={[textStyle, styles.footer]}>
+            Already have an account?{' '}
+            <Text style={styles.link} onPress={() => router.push('/auth/LoginScreen')}>
+              Log In
+            </Text>
+          </Text>
+        </View>
+
+        {/* Verification Modal */}
+        <Modal visible={showVerificationModal} animationType="slide" transparent>
+          <VerificationScreen
+            onClose={() => setShowVerificationModal(false)}
+            onContinue={() => {
+              setShowVerificationModal(false);
+              router.push('/auth/Location/select-location');
+            }}
+            isFromSignup={true}
+            email={email}
+          />
+        </Modal>
+
+        <CustomPopup />
+      </View>
     </SafeAreaView>
   );
 }
@@ -174,7 +292,7 @@ export default function SignupScreen() {
 const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-    safeArea: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
@@ -247,26 +365,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'SFPro',
   },
-dividerRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '100%',
-  marginBottom: 30,
-},
-
-lineImage: {
-  width: 80,           // Adjust width to match your line length
-  height: 2,           // Thin line look
-  resizeMode: 'contain',
-},
-
-orText: {
-  marginHorizontal: 10,
-  fontSize: 13,
-  color: '#6c757d',
-  fontFamily: 'Montserrat_400Regular',
-},
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 30,
+  },
+  lineImage: {
+    width: 80,
+    height: 2,
+    resizeMode: 'contain',
+  },
+  orText: {
+    marginHorizontal: 10,
+    fontSize: 13,
+    color: '#6c757d',
+    fontFamily: 'Montserrat_400Regular',
+  },
   socialButtons: {
     width: '100%',
     gap: 10,
@@ -291,7 +407,7 @@ orText: {
     fontSize: 14,
     color: '#000',
     fontWeight: '500',
-     alignItems: 'center',
+    alignItems: 'center',
   },
   footerRow: {
     flexDirection: 'row',
@@ -307,5 +423,82 @@ orText: {
     fontWeight: '600',
     color: '#000',
     fontFamily: 'Montserrat_600SemiBold',
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  popupContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+    minWidth: 280,
+    maxWidth: 350,
+  },
+  popupIconContainer: {
+    marginBottom: 16,
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a2238',
+    marginBottom: 12,
+    textAlign: 'center',
+    fontFamily: 'BebasNeue_400Regular',
+    letterSpacing: 1,
+  },
+  popupMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+    fontFamily: 'Montserrat_400Regular',
+  },
+  popupButtonsContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'center',
+  },
+  popupButton: {
+    backgroundColor: '#000000',
+    paddingVertical: 14,
+    paddingHorizontal: 36,
+    borderRadius: 8,
+    minWidth: 120,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  popupButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+    textAlign: 'center',
+    fontFamily: 'Montserrat_400Regular',
+    letterSpacing: 0.5,
+  },
+  popupCancelButton: {
+    backgroundColor: '#f3f3f3',
+  },
+  popupCancelButtonText: {
+    color: '#666',
+  },
+  popupDestructiveButton: {
+    backgroundColor: '#f44336',
+  },
+  popupDestructiveButtonText: {
+    color: '#fff',
   },
 });

@@ -19,9 +19,9 @@ const icons = {
 
 // Thumbnail images
 const thumbnailImages = [
-  require('../../assets/images/thumb1.png'),
-  require('../../assets/images/thumb2.png'),
-  require('../../assets/images/thumb3.png'),
+  require('../../assets/images/thumb1.jpg'),
+  require('../../assets/images/thumb2.jpg'),
+  require('../../assets/images/thumb3.jpg'),
 ];
 
 export default function PropertyHeader({

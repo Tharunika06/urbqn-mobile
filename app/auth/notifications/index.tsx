@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   FlatList,
   ScrollView,
   ActivityIndicator,
-  Alert,
-  
   StatusBar,
+  Modal,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +35,107 @@ type Notification = {
   isRead: boolean;
 };
 
+interface PopupProps {
+  visible: boolean;
+  title: string;
+  message: string;
+  onClose: () => void;
+  onConfirm?: () => void;
+  type?: 'success' | 'error' | 'warning' | 'confirm';
+  showCancel?: boolean;
+}
+
+const CustomPopup: React.FC<PopupProps> = ({ 
+  visible, 
+  title, 
+  message, 
+  onClose, 
+  onConfirm,
+  type = 'error',
+  showCancel = false 
+}) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    } else {
+      scaleAnim.setValue(0);
+    }
+  }, [visible]);
+
+  const getIconColor = () => {
+    switch (type) {
+      case 'success':
+        return '#4CAF50';
+      case 'error':
+        return '#F44336';
+      case 'warning':
+      case 'confirm':
+        return '#FF9800';
+      default:
+        return '#F44336';
+    }
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return '✓';
+      case 'error':
+        return '✕';
+      case 'warning':
+        return '!';
+      case 'confirm':
+        return '?';
+      default:
+        return '✕';
+    }
+  };
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={popupStyles.overlay}>
+        <Animated.View style={[popupStyles.container, { transform: [{ scale: scaleAnim }] }]}>
+          <View style={[popupStyles.iconCircle, { backgroundColor: getIconColor() }]}>
+            <Text style={popupStyles.iconText}>{getIcon()}</Text>
+          </View>
+          <Text style={popupStyles.title}>{title}</Text>
+          <Text style={popupStyles.message}>{message}</Text>
+          
+          <View style={popupStyles.buttonContainer}>
+            {showCancel && (
+              <Pressable 
+                style={[popupStyles.button, popupStyles.cancelButton]} 
+                onPress={onClose}
+              >
+                <Text style={popupStyles.cancelButtonText}>Cancel</Text>
+              </Pressable>
+            )}
+            <Pressable 
+              style={[
+                popupStyles.button, 
+                popupStyles.confirmButton,
+                showCancel && { flex: 1 }
+              ]} 
+              onPress={onConfirm || onClose}
+            >
+              <Text style={popupStyles.confirmButtonText}>
+                {showCancel ? (type === 'confirm' ? 'Confirm' : 'Delete') : 'OK'}
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
+
 const icons = {
   backArrow: require('../../../assets/icons/back-arrow.png'),
   delete: require('../../../assets/icons/delete.png'),
@@ -42,8 +143,7 @@ const icons = {
 
 const TABS: TabKey[] = ['All', 'Review', 'Sold', 'House', 'Villa', 'Rental'];
 
-// ✅ UPDATED: Using mobile-specific endpoint
-const API_BASE_URL = 'http://192.168.0.152:5000/api/notifications';
+const API_BASE_URL = 'http://192.168.0.154:5000/api/notifications';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
@@ -54,8 +154,41 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [popup, setPopup] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'confirm';
+    showCancel: boolean;
+    onConfirm?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error',
+    showCancel: false,
+  });
 
-  // ✅ Fetch unread count for mobile
+  const showPopup = (
+    title: string,
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'confirm' = 'error',
+    onConfirm?: () => void,
+    showCancel = false
+  ) => {
+    setPopup({ visible: true, title, message, type, showCancel, onConfirm });
+  };
+
+  const closePopup = () => {
+    setPopup({ 
+      visible: false, 
+      title: '', 
+      message: '', 
+      type: 'error', 
+      showCancel: false 
+    });
+  };
+
   const fetchUnreadCount = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/mobile/unread-count`);
@@ -68,7 +201,6 @@ export default function NotificationsScreen() {
     }
   };
 
-  // ✅ UPDATED: Fetch notifications from MOBILE endpoint
   const fetchNotifications = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) {
@@ -76,10 +208,7 @@ export default function NotificationsScreen() {
         setError(null);
       }
       
-      // ✅ IMPORTANT: Use /mobile endpoint for mobile app
       let url = `${API_BASE_URL}/mobile`;
-      
-      // Filter by type if not "All"
       if (activeTab !== 'All') {
         url += `?type=${activeTab}`;
       }
@@ -91,9 +220,7 @@ export default function NotificationsScreen() {
       
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
       });
       
@@ -108,7 +235,6 @@ export default function NotificationsScreen() {
       const data = await response.json();
       console.log('✅ Mobile notifications fetched:', data.length);
       
-      // Filter by tab on frontend if needed
       let filteredData = data;
       if (activeTab !== 'All') {
         filteredData = data.filter((notif: Notification) => notif.type === activeTab);
@@ -116,18 +242,15 @@ export default function NotificationsScreen() {
       
       setNotifications(filteredData);
       setError(null);
-      
-      // Fetch unread count
       fetchUnreadCount();
     } catch (error: any) {
       console.error('❌ Error fetching notifications:', error);
-      
       let errorMessage = 'Failed to load notifications';
       
       if (error.name === 'AbortError') {
-        errorMessage = 'Request timeout. Server not responding.\n\nCheck if server is running on:\nhttp://192.168.0.152:5000';
+        errorMessage = 'Request timeout. Server not responding.\n\nCheck if server is running on:\nhttp://192.168.0.154:5000';
       } else if (error.message === 'Network request failed') {
-        errorMessage = 'Cannot connect to server.\n\nTroubleshooting:\n1. Server running?\n2. Same WiFi network?\n3. Firewall blocking?\n\nServer: http://192.168.0.152:5000';
+        errorMessage = 'Cannot connect to server.\n\nTroubleshooting:\n1. Server running?\n2. Same WiFi network?\n3. Firewall blocking?\n\nServer: http://192.168.0.154:5000';
       } else if (error.message.includes('Server error')) {
         errorMessage = `Server error: ${error.message}\n\nCheck server console for errors.`;
       }
@@ -135,13 +258,15 @@ export default function NotificationsScreen() {
       setError(errorMessage);
       
       if (showLoader) {
-        Alert.alert(
+        showPopup(
           'Connection Error',
           errorMessage,
-          [
-            { text: 'Retry', onPress: () => fetchNotifications(true) },
-            { text: 'Cancel', style: 'cancel' }
-          ]
+          'error',
+          () => {
+            closePopup();
+            fetchNotifications(true);
+          },
+          true
         );
       }
     } finally {
@@ -159,14 +284,11 @@ export default function NotificationsScreen() {
     fetchNotifications(false);
   };
 
-  // ✅ UPDATED: Delete notification
   const deleteNotification = async (id: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
@@ -174,22 +296,19 @@ export default function NotificationsScreen() {
       }
 
       setNotifications(prev => prev.filter(notif => notif._id !== id));
-      fetchUnreadCount(); // Update count
-      Alert.alert('Success', 'Notification deleted');
+      fetchUnreadCount();
+      showPopup('Success', 'Notification deleted successfully', 'success');
     } catch (error) {
       console.error('Error deleting notification:', error);
-      Alert.alert('Error', 'Failed to delete notification');
+      showPopup('Error', 'Failed to delete notification', 'error');
     }
   };
 
-  // ✅ UPDATED: Mark notification as read
   const markAsRead = async (id: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/${id}/read`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (response.ok) {
@@ -198,21 +317,18 @@ export default function NotificationsScreen() {
             notif._id === id ? { ...notif, isRead: true } : notif
           )
         );
-        fetchUnreadCount(); // Update count
+        fetchUnreadCount();
       }
     } catch (error) {
       console.error('Error marking as read:', error);
     }
   };
 
-  // ✅ NEW: Mark all as read
   const markAllAsRead = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/mobile/mark-all-read`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (response.ok) {
@@ -220,54 +336,39 @@ export default function NotificationsScreen() {
           prev.map(notif => ({ ...notif, isRead: true }))
         );
         setUnreadCount(0);
-        Alert.alert('Success', 'All notifications marked as read');
+        showPopup('Success', 'All notifications marked as read', 'success');
       }
     } catch (error) {
       console.error('Error marking all as read:', error);
-      Alert.alert('Error', 'Failed to mark all as read');
+      showPopup('Error', 'Failed to mark all as read', 'error');
     }
   };
 
-  // ✅ NEW: Clear all mobile notifications
   const clearAllNotifications = async () => {
-    Alert.alert(
+    showPopup(
       'Clear All Notifications',
       'Are you sure you want to clear all notifications?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await fetch(`${API_BASE_URL}/mobile/clear`, {
-                method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              });
+      'confirm',
+      async () => {
+        closePopup();
+        try {
+          const response = await fetch(`${API_BASE_URL}/mobile/clear`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+          });
 
-              if (response.ok) {
-                setNotifications([]);
-                setUnreadCount(0);
-                Alert.alert('Success', 'All notifications cleared');
-              }
-            } catch (error) {
-              console.error('Error clearing notifications:', error);
-              Alert.alert('Error', 'Failed to clear notifications');
-            }
+          if (response.ok) {
+            setNotifications([]);
+            setUnreadCount(0);
+            showPopup('Success', 'All notifications cleared', 'success');
           }
+        } catch (error) {
+          console.error('Error clearing notifications:', error);
+          showPopup('Error', 'Failed to clear notifications', 'error');
         }
-      ]
+      },
+      true
     );
-  };
-
-  const getDefaultAvatar = (type: string) => {
-    try {
-      return require('../../../assets/images/placeholder.png');
-    } catch {
-      return null;
-    }
   };
 
   const timeAgo = (timestamp: string) => {
@@ -291,17 +392,15 @@ export default function NotificationsScreen() {
         <Pressable
           style={styles.deleteBtn}
           onPress={() => {
-            Alert.alert(
+            showPopup(
               'Delete Notification',
               'Are you sure you want to delete this notification?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                  text: 'Delete', 
-                  onPress: () => deleteNotification(item._id), 
-                  style: 'destructive' 
-                },
-              ]
+              'confirm',
+              () => {
+                closePopup();
+                deleteNotification(item._id);
+              },
+              true
             );
           }}
         >
@@ -319,16 +418,14 @@ export default function NotificationsScreen() {
           style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
         >
           <View style={[styles.card, !item.isRead && styles.unreadCard]}>
-            <Image
-              source={
-                item.propertyImage
-                  ? { uri: item.propertyImage }
-                  : item.userImage
-                  ? { uri: item.userImage }
-                  : getDefaultAvatar(item.type)
-              }
-              style={styles.avatar}
-            />
+            
+            {(item.propertyImage || item.userImage) && (
+              <Image
+                source={{ uri: item.propertyImage || item.userImage }}
+                style={styles.avatar}
+              />
+            )}
+
             <View style={styles.textGroup}>
               <View style={styles.nameRow}>
                 <Text style={styles.name} numberOfLines={1}>
@@ -365,7 +462,6 @@ export default function NotificationsScreen() {
               <Image source={icons.backArrow} style={styles.icon} />
             </Pressable>
 
-            {/* ✅ Action buttons */}
             <View style={styles.headerActions}>
               {unreadCount > 0 && (
                 <Pressable 
@@ -468,9 +564,18 @@ export default function NotificationsScreen() {
             onRefresh={handleRefresh}
           />
         )}
-
-        
       </View>
+
+      <CustomPopup
+        visible={popup.visible}
+        title={popup.title}
+        message={popup.message}
+        type={popup.type}
+        showCancel={popup.showCancel}
+        onClose={closePopup}
+        onConfirm={popup.onConfirm}
+      />
+
       <Footer />
     </SafeAreaView>
   );
@@ -730,5 +835,82 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 13,
     fontFamily: 'Montserrat_400Regular',
+  },
+});
+
+const popupStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 20,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1a2238',
+    marginBottom: 8,
+  },
+  message: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#6c6c6c',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 10,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#1a2238',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
   },
 });

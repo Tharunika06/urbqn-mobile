@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -59,11 +59,8 @@ export default function Header({ userEmail, userName }: HeaderProps) {
   // Notification count state
   const [notificationCount, setNotificationCount] = useState<number>(0);
 
-  // New state to handle modal visibility
-  const [isModalVisible, setModalVisible] = useState(false);
-
-  const BASE_URL = "http://192.168.0.152:5000/api";
-  const NOTIFICATIONS_URL = "http://192.168.0.152:5000/api/notifications";
+  const BASE_URL = "http://192.168.0.154:5000/api";
+  const NOTIFICATIONS_URL = "http://192.168.0.154:5000/api/notifications";
 
   // Get current user from AsyncStorage
   const getCurrentUser = async (): Promise<UserData | null> => {
@@ -124,28 +121,16 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     }
   };
 
-  // Navigate to profile creation with user info
-  const navigateToProfileCreation = (user: UserData) => {
-    router.push({
-      pathname: '/(tabs)/Profile',
-      params: {
-        userEmail: user.email,
-        firstName: user.firstName || '',
-        fromHeader: 'true',
-      },
-    });
-  };
-
-  // Handle avatar click - navigate to appropriate page
+  // Handle avatar click - only navigate to view profile if profile exists
   const handleAvatarClick = () => {
     if (loading) return;
     
     if (profileExists && userProfile) {
       // Profile exists, go to view profile
       router.push('/(tabs)/ViewProfile');
-    } else if (currentUser) {
-      // No profile, show modal for profile creation
-      setModalVisible(true);
+    } else {
+      // No profile exists - do nothing or show a subtle indicator
+      console.log('User profile not found. Avatar click ignored.');
     }
   };
 
@@ -159,22 +144,39 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     try {
       setLoading(true);
       const user = await getCurrentUser();
+      
       if (user) {
         setCurrentUser(user);
-        const exists = await checkProfileExists(user.email);
-        setProfileExists(exists);
+        
+        try {
+          const exists = await checkProfileExists(user.email);
+          setProfileExists(exists);
 
-        if (exists) {
-          const profile = await fetchUserProfile(user.email);
-          setUserProfile(profile);
-          setProfilePhoto(profile?.photo || null);
-          setDisplayName(profile?.firstName && profile?.lastName 
-            ? `${profile.firstName} ${profile.lastName}`
-            : userName || user.firstName || user.email || 'Guest');
-        } else {
+          if (exists) {
+            const profile = await fetchUserProfile(user.email);
+            if (profile) {
+              setUserProfile(profile);
+              setProfilePhoto(profile?.photo || null);
+              setDisplayName(profile?.firstName && profile?.lastName 
+                ? `${profile.firstName} ${profile.lastName}`
+                : userName || user.firstName || user.email || 'Guest');
+            } else {
+              // Profile check returned exists but couldn't fetch - use fallback
+              setDisplayName(userName || user.firstName || user.email || 'Guest');
+              setProfileExists(false);
+            }
+          } else {
+            // No profile exists - use user data as fallback
+            setDisplayName(userName || user.firstName || user.email || 'Guest');
+          }
+        } catch (profileError) {
+          console.error("Error during profile check:", profileError);
+          // If profile check fails, continue with basic user info
           setDisplayName(userName || user.firstName || user.email || 'Guest');
+          setProfileExists(false);
         }
       } else {
+        // No user logged in
         setCurrentUser(null);
         setProfileExists(false);
         setDisplayName(userName || userEmail || 'Guest');
@@ -184,6 +186,7 @@ export default function Header({ userEmail, userName }: HeaderProps) {
       setProfileCheckComplete(true);
     } catch (error) {
       console.error("Error loading user data:", error);
+      // Fallback to basic display
       setDisplayName('Guest');
       setProfileExists(false);
       setProfileCheckComplete(true);
@@ -215,26 +218,21 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     return require('../../assets/images/avatar.png');
   };
 
-  const getAvatarStyle = () => {
-    if (loading) {
-      return [styles.avatar, { opacity: 0.7 }];
-    }
+ const getAvatarStyle = () => {
+  if (loading) {
+    return [styles.avatar, { opacity: 0.7 }];
+  }
 
-    if (profileExists && userProfile) {
-      return [styles.avatar, { borderColor: '#4CAF50' }]; // Green border for complete profile
-    } else {
-      return [styles.avatar, { borderColor: '#FF9800' }]; // Orange border for incomplete profile
-    }
-  };
-
-  // Close modal when the cross button is clicked
-  const closeModal = () => {
-    setModalVisible(false);
-  };
+  if (profileExists && userProfile) {
+    return [styles.avatar, { borderWidth: 0 }]; // No border for complete profile
+  } else {
+    return [styles.avatar, { borderWidth: 0 }]; // No border for no profile
+  }
+};
 
   return (
     <View style={styles.header}>
-      <Pressable onPress={handleAvatarClick} style={styles.avatarContainer} disabled={loading}>
+      <Pressable onPress={handleAvatarClick} style={styles.avatarContainer} disabled={loading || !profileExists}>
         {loading ? (
           <View style={styles.avatarLoading}>
             <ActivityIndicator size="small" color="#007AFF" />
@@ -269,26 +267,6 @@ export default function Header({ userEmail, userName }: HeaderProps) {
           </View>
         )}
       </Pressable>
-
-      {/* Modal for profile creation prompt */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalBackground}>
-          <View style={styles.modalContent}>
-            <Pressable style={styles.closeButton} onPress={closeModal}>
-              <Text style={styles.closeButtonText}>×</Text>
-            </Pressable>
-            <Text style={styles.modalText}>Complete your profile to continue using the app.</Text>
-            <Pressable onPress={() => navigateToProfileCreation(currentUser!)} style={styles.modalButton}>
-              <Text style={styles.modalButtonText}>Create Profile</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -319,24 +297,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileIncompleteIndicator: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#FF9800',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  profileIncompleteText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
   greetingContainer: {
     flex: 1,
     marginRight: 10,
@@ -346,12 +306,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#000',
     fontFamily: 'BebasNeue_400Regular',
-  },
-  profileStatus: {
-    fontSize: 12,
-    color: '#FF9800',
-    fontStyle: 'italic',
-    marginTop: 2,
   },
   nameLoading: {
     flexDirection: 'row',
@@ -389,57 +343,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'Montserrat_600SemiBold',
   },
-  modalBackground: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 8,
-    width: '80%',
-    alignSelf: 'center',
-    maxHeight: '60%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    top: '20%',
-    left: 0,
-    right: 0,
-  },
-  modalText: {
-    fontSize: 18,
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  modalButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#FF9800',
-    padding: 10,
-    borderRadius: 25,
-    zIndex: 10,
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  
 });

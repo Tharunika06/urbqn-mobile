@@ -1,13 +1,15 @@
 // urban/app/auth/Estate/EstateDetails.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   Platform,
   StatusBar,
-  Alert,
   Text,
+  Modal,
+  Pressable,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -25,7 +27,7 @@ import PropertyFacilities from '../../../components/Estate/PropertyFacilities';
 import LocationSection from '../../../components/Estate/LocationSection';
 import ReviewsSection from '../../../components/Estate/ReviewsSection';
 
-const API_BASE_URL = 'http://192.168.0.152:5000';
+const API_BASE_URL = 'http://192.168.0.154:5000';
 
 type EstateDetailsRouteProp = RouteProp<RootStackParamList, 'auth/Estate/EstateDetails'>;
 
@@ -39,7 +41,7 @@ export interface Review {
 }
 
 export type EstateDetailsProps = {
-    property: {
+  property: {
     _id: string | number;
     name: string;
     location: string;
@@ -50,13 +52,69 @@ export type EstateDetailsProps = {
     status?: string;
     rentPrice?: string | number;
     salePrice?: string | number;
-    price?: string | number; 
+    price?: string | number;
     country?: string;
     facility?: string[];
     rating?: number;
-    // Add other properties that may exist on your object
     [key: string]: any;
   };
+};
+
+interface PopupProps {
+  visible: boolean;
+  title: string;
+  message: string;
+  onClose: () => void;
+  type?: 'success' | 'error' | 'warning';
+}
+
+const CustomPopup: React.FC<PopupProps> = ({ visible, title, message, onClose, type = 'error' }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    } else {
+      scaleAnim.setValue(0);
+    }
+  }, [visible]);
+
+  const getIconColor = () => {
+    switch (type) {
+      case 'success':
+        return '#4CAF50';
+      case 'error':
+        return '#F44336';
+      case 'warning':
+        return '#FF9800';
+      default:
+        return '#F44336';
+    }
+  };
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={popupStyles.overlay}>
+        <Animated.View style={[popupStyles.container, { transform: [{ scale: scaleAnim }] }]}>
+          <View style={[popupStyles.iconCircle, { backgroundColor: getIconColor() }]}>
+            <Text style={popupStyles.iconText}>
+              {type === 'success' ? '✓' : type === 'warning' ? '!' : '✕'}
+            </Text>
+          </View>
+          <Text style={popupStyles.title}>{title}</Text>
+          <Text style={popupStyles.message}>{message}</Text>
+          <Pressable style={popupStyles.button} onPress={onClose}>
+            <Text style={popupStyles.buttonText}>OK</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
 };
 
 const textStyle = {
@@ -75,9 +133,36 @@ export default function EstateDetails() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
+  const [popup, setPopup] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning';
+    onCloseAction?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error',
+  });
 
   const propertyId = property._id ?? property.name;
   const isFavorite = favorites.includes(String(propertyId));
+
+  const showPopup = (
+    title: string,
+    message: string,
+    type: 'success' | 'error' | 'warning' = 'error',
+    onCloseAction?: () => void
+  ) => {
+    setPopup({ visible: true, title, message, type, onCloseAction });
+  };
+
+  const closePopup = () => {
+    const action = popup.onCloseAction;
+    setPopup({ visible: false, title: '', message: '', type: 'error' });
+    if (action) action();
+  };
 
   const getImageSrc = (photo: string | any) => {
     if (photo && typeof photo === 'string' && photo.startsWith('data:image/')) {
@@ -183,7 +268,7 @@ export default function EstateDetails() {
 
   const handleViewOnMap = () => {
     if (!property) {
-      Alert.alert('Error', 'Property data is not available');
+      showPopup('Error', 'Property data is not available', 'error');
       return;
     }
     try {
@@ -199,7 +284,7 @@ export default function EstateDetails() {
       });
     } catch (error) {
       console.error('Error preparing property data for map:', error);
-      Alert.alert('Error', 'Failed to prepare property data for map');
+      showPopup('Error', 'Failed to prepare property data for map', 'error');
     }
   };
 
@@ -277,6 +362,14 @@ export default function EstateDetails() {
           isValid={isValid}
         />
       </ScrollView>
+
+      <CustomPopup
+        visible={popup.visible}
+        title={popup.title}
+        message={popup.message}
+        type={popup.type}
+        onClose={closePopup}
+      />
     </SafeAreaView>
   );
 }
@@ -294,4 +387,65 @@ const styles = StyleSheet.create({
   price: { fontSize: 15, fontWeight: '600', color: '#1a2238', fontFamily: 'Montserrat_700Bold' },
   priceUnavailable: { color: '#999', fontStyle: 'italic', fontSize: 14 },
   location: { color: '#888', marginTop: 4, fontSize: 13 },
+});
+
+const popupStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 20,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1a2238',
+    marginBottom: 8,
+  },
+  message: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#6c6c6c',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  button: {
+    backgroundColor: '#1a2238',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
 });

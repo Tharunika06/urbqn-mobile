@@ -113,18 +113,18 @@ export default function ReviewsSection({
               )}
 
               {/* Disabled button when 3 or fewer reviews */}
-              {!hasMoreThanThreeReviews && (
+              {/* {!hasMoreThanThreeReviews && (
                 <View style={styles.viewAllButtonWrapper}>
                   <Pressable 
                     style={styles.viewAllReviewsButtonDisabled}
                     disabled={true}
                   >
                     <Text style={styles.viewAllReviewsTextDisabled}>
-                      All {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+                       {reviews.length} review{reviews.length !== 1 ? 's' : ''}
                     </Text>
                   </Pressable>
                 </View>
-              )}
+              )} */}
             </>
           ) : (
             <View style={styles.noReviewsContainer}>

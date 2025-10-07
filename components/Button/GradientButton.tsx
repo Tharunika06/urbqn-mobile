@@ -27,8 +27,13 @@ const GradientButton: React.FC<GradientButtonProps> = ({
   textStyle,
 }) => {
   return (
-    <Pressable onPress={onPress} activeOpacity={0.8}>
-      <LinearGradient
+<Pressable
+  onPress={onPress}
+  style={({ pressed }) => [
+    { opacity: pressed ? 0.8 : 1 }, // mimic activeOpacity
+  ]}
+>
+        <LinearGradient
         colors={colors}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}

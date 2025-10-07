@@ -6,9 +6,10 @@ import {
   Pressable,
   StyleSheet,
   Dimensions,
-  Alert,
   Image,
-  StatusBar
+  StatusBar,
+  Modal,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -27,6 +28,63 @@ interface VerificationProps {
   email: string;
 }
 
+interface PopupProps {
+  visible: boolean;
+  title: string;
+  message: string;
+  onClose: () => void;
+  type?: 'success' | 'error' | 'warning';
+}
+
+const CustomPopup: React.FC<PopupProps> = ({ visible, title, message, onClose, type = 'error' }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    } else {
+      scaleAnim.setValue(0);
+    }
+  }, [visible]);
+
+  const getIconColor = () => {
+    switch (type) {
+      case 'success':
+        return '#4CAF50';
+      case 'error':
+        return '#F44336';
+      case 'warning':
+        return '#FF9800';
+      default:
+        return '#F44336';
+    }
+  };
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={styles.popupOverlay}>
+        <Animated.View style={[styles.popupContainer, { transform: [{ scale: scaleAnim }] }]}>
+          <View style={[styles.iconCircle, { backgroundColor: getIconColor() }]}>
+            <Text style={styles.iconText}>
+              {type === 'success' ? '✓' : type === 'warning' ? '!' : '✕'}
+            </Text>
+          </View>
+          <Text style={styles.popupTitle}>{title}</Text>
+          <Text style={styles.popupMessage}>{message}</Text>
+          <Pressable style={styles.popupButton} onPress={onClose}>
+            <Text style={styles.popupButtonText}>OK</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
+
 export default function VerificationScreen({
   onClose,
   onContinue,
@@ -36,6 +94,18 @@ export default function VerificationScreen({
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputs = useRef<Array<TextInput | null>>([]);
   const router = useRouter();
+  const [popup, setPopup] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning';
+    onCloseAction?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error',
+  });
 
   const [fontsLoaded] = useFonts({
     BebasNeue_400Regular,
@@ -43,6 +113,21 @@ export default function VerificationScreen({
   });
 
   if (!fontsLoaded) return null;
+
+  const showPopup = (
+    title: string,
+    message: string,
+    type: 'success' | 'error' | 'warning' = 'error',
+    onCloseAction?: () => void
+  ) => {
+    setPopup({ visible: true, title, message, type, onCloseAction });
+  };
+
+  const closePopup = () => {
+    const action = popup.onCloseAction;
+    setPopup({ visible: false, title: '', message: '', type: 'error' });
+    if (action) action();
+  };
 
   const handleChangeText = (val: string, index: number) => {
     const newCode = [...code];
@@ -61,13 +146,14 @@ export default function VerificationScreen({
   const handleVerify = async (otpParam?: string) => {
     const otp = otpParam || code.join('');
     if (otp.length < 6) {
-      return Alert.alert('Incomplete OTP', 'Please enter the full 6-digit code.');
+      showPopup('Incomplete OTP', 'Please enter the full 6-digit code.', 'warning');
+      return;
     }
 
     const endpoint = isFromSignup ? '/api/verify-code' : '/api/verify-reset-otp';
 
     try {
-      const response = await fetch(`http://192.168.0.152:5000${endpoint}`, {
+      const response = await fetch(`http://192.168.0.154:5000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp }),
@@ -76,74 +162,79 @@ export default function VerificationScreen({
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'OTP verified successfully');
-        onContinue();
+        showPopup('Success', 'OTP verified successfully', 'success', onContinue);
       } else {
-        Alert.alert('Verification Failed', data.error || 'Invalid or expired OTP');
+        showPopup('Verification Failed', data.error || 'Invalid or expired OTP', 'error');
       }
     } catch (error) {
       console.error('Verification Error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      showPopup('Error', 'Something went wrong. Please try again.', 'error');
     }
   };
 
   return (
-     <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-    <View style={styles.fullscreen}>
-      <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+      <View style={styles.fullscreen}>
+        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
 
-      <View style={styles.modal}>
-        {/* ⬅️ Custom back arrow image */}
-        <Pressable
-          style={styles.backButton}
-          onPress={() => router.push('./auth/LoginScreen')}
-        >
-          <Image
-            source={require('../../assets/icons/back-arrow.png')}
-            style={styles.backIcon}
-          />
-        </Pressable>
-
-        <Text style={styles.heading}>VERIFICATION</Text>
-        <Text style={styles.description}>
-          Enter the 6-digit code that you received on your email.
-        </Text>
-
-        <View style={styles.codeContainer}>
-          {code.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => {
-                inputs.current[index] = ref;
-              }}
-              value={digit}
-              onChangeText={(val) => handleChangeText(val, index)}
-              maxLength={1}
-              keyboardType="numeric"
-              style={styles.codeInput}
-              returnKeyType="next"
-              onSubmitEditing={() => {
-                if (index < 5) inputs.current[index + 1]?.focus();
-              }}
+        <View style={styles.modal}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.push('./auth/LoginScreen')}
+          >
+            <Image
+              source={require('../../assets/icons/back-arrow.png')}
+              style={styles.backIcon}
             />
-          ))}
+          </Pressable>
+
+          <Text style={styles.heading}>VERIFICATION</Text>
+          <Text style={styles.description}>
+            Enter the 6-digit code that you received on your email.
+          </Text>
+
+          <View style={styles.codeContainer}>
+            {code.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref) => {
+                  inputs.current[index] = ref;
+                }}
+                value={digit}
+                onChangeText={(val) => handleChangeText(val, index)}
+                maxLength={1}
+                keyboardType="numeric"
+                style={styles.codeInput}
+                returnKeyType="next"
+                onSubmitEditing={() => {
+                  if (index < 5) inputs.current[index + 1]?.focus();
+                }}
+              />
+            ))}
+          </View>
+
+          <GradientButton
+            onPress={() => handleVerify()}
+            label="Continue"
+            colors={['#000000', '#474747']}
+          />
+
+          <Text style={styles.footer}>
+            By continuing, you agree to Shopping{' '}
+            <Text style={styles.link}>Conditions of Use</Text> and{' '}
+            <Text style={styles.link}>Privacy Notice</Text>.
+          </Text>
         </View>
-
-<GradientButton
-  onPress={() => handleVerify()}
-  label="Continue"
-  colors={['#000000', '#474747']}
- 
-/>
-
-        <Text style={styles.footer}>
-          By continuing, you agree to Shopping{' '}
-          <Text style={styles.link}>Conditions of Use</Text> and{' '}
-          <Text style={styles.link}>Privacy Notice</Text>.
-        </Text>
       </View>
-    </View>
+
+      <CustomPopup
+        visible={popup.visible}
+        title={popup.title}
+        message={popup.message}
+        type={popup.type}
+        onClose={closePopup}
+      />
     </SafeAreaView>
   );
 }
@@ -178,7 +269,7 @@ const styles = StyleSheet.create({
   image: {
     width: 380,
     height: 460,
-marginTop: 40,
+    marginTop: 40,
     marginBottom: 5,
   },
   title: {
@@ -186,7 +277,7 @@ marginTop: 40,
     textAlign: 'center',
     color: '#1e1e1e',
     lineHeight: 42,
-    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+    fontFamily: 'BebasNeue_400Regular',
   },
   progressBar: {
     flexDirection: 'row',
@@ -214,7 +305,7 @@ marginTop: 40,
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+    fontFamily: 'SFPro',
   },
   fullscreen: {
     flex: 1,
@@ -230,18 +321,6 @@ marginTop: 40,
     elevation: 10,
     paddingTop: 60,
   },
-  // backButton: {
-  //   position: 'absolute',
-  //   top: 20,
-  //   left: 20,
-  //   zIndex: 10,
-  //   padding: 8,
-  // },
-  // backIcon: {
-  //   width: 24,
-  //   height: 24,
-  //   resizeMode: 'contain',
-  // },
   heading: {
     fontSize: 22,
     textAlign: 'center',
@@ -273,18 +352,6 @@ marginTop: 40,
     fontFamily: 'Montserrat_400Regular',
     color: '#000',
   },
-  // button: {
-  //   backgroundColor: '#000',
-  //   paddingVertical: 14,
-  //   borderRadius: 6,
-  //   alignItems: 'center',
-  //   marginBottom: 16,
-  // },
-  // buttonText: {
-  //   color: '#fff',
-  //   fontSize: 15,
-  //   fontFamily: 'SFProText-Bold', // Ensure it's imported properly if local
-  // },
   footer: {
     fontSize: 12,
     color: '#6c6c6c',
@@ -294,5 +361,66 @@ marginTop: 40,
   link: {
     color: '#007aff',
     fontFamily: 'Montserrat_400Regular',
+  },
+  // Popup styles
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  popupContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: width * 0.85,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#000',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  popupMessage: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#6c6c6c',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  popupButton: {
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  popupButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '600',
   },
 });

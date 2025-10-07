@@ -58,15 +58,7 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
           </TouchableOpacity>
           
           {/* Delete Icon - Top Left Corner - Alternative delete option */}
-          <TouchableOpacity 
-            style={styles.deleteIcon} 
-            onPress={() => onDelete(item.id)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.deleteBackground}>
-              <Ionicons name="trash-outline" size={14} color="#FF4444" />
-            </View>
-          </TouchableOpacity>
+         
           
           {/* Price Tag - Bottom Right Corner */}
           <LinearGradient
@@ -133,20 +125,20 @@ const styles = StyleSheet.create({
   card: {
     width: '48%',
     backgroundColor: '#F5F4F8',
-    borderRadius: 16,
+    borderRadius: 29,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    // shadowColor: '#000',
+    // shadowOffset: {
+    //   width: 0,
+    //   height: 2,
+    // },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 8,
+    // elevation: 4,
   },
   imageContainer: {
     position: 'relative',
-    margin: 8,
+    margin: 12,
     borderRadius: 12,
     overflow: 'hidden',
     height: 140,

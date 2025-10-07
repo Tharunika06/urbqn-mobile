@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Pressable,
   Image,
-  Alert,
   ScrollView,
   StatusBar,
   ActivityIndicator,
-  Platform
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,6 +20,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
+import { Montserrat_400Regular } from '@expo-google-fonts/montserrat';
+import { Prompt_400Regular } from '@expo-google-fonts/prompt';
+
 
 interface ProfileData {
   firstName?: string;
@@ -47,6 +51,70 @@ interface ProfilesResponse {
   profiles: ProfileData[];
 }
 
+interface ToastMessage {
+  type: 'success' | 'error' | 'info';
+  title: string;
+  message: string;
+}
+
+// Custom Toast Component
+const CustomToast: React.FC<{ 
+  visible: boolean; 
+  type: 'success' | 'error' | 'info'; 
+  title: string; 
+  message: string;
+  onHide: () => void;
+}> = ({ visible, type, title, message, onHide }) => {
+  const [slideAnim] = useState(new Animated.Value(-100));
+
+  useEffect(() => {
+    if (visible) {
+      Animated.sequence([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.delay(3000),
+        Animated.timing(slideAnim, {
+          toValue: -100,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        onHide();
+      });
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  const backgroundColor = 
+    type === 'success' ? '#fff' : 
+    type === 'error' ? '#fff' : 
+    '#2196F3';
+
+  const icon = 
+    type === 'success' ? 'check-circle' : 
+    type === 'error' ? 'exclamation-circle' : 
+    'info-circle';
+
+  return (
+    <Animated.View 
+      style={[
+        styles.toastContainer, 
+        { backgroundColor, transform: [{ translateY: slideAnim }] }
+      ]}
+    >
+      <Icon name={icon} size={20} color="#fff" style={styles.toastIcon} />
+      <View style={styles.toastContent}>
+        <Text style={styles.toastTitle}>{title}</Text>
+        <Text style={styles.toastMessage}>{message}</Text>
+      </View>
+    </Animated.View>
+  );
+};
+
 export default function ViewProfile() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -56,19 +124,27 @@ export default function ViewProfile() {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastData, setToastData] = useState<ToastMessage>({
+    type: 'info',
+    title: '',
+    message: ''
+  });
 
-  const BASE_URL = "http://192.168.0.152:5000/api";
+  const BASE_URL = "http://192.168.0.154:5000/api";
 
-  // Enhanced alert function to ensure it shows on all platforms
-  const showAlert = (title: string, message: string, buttons?: any[]) => {
-    // Add a small delay to ensure the UI is ready
-    setTimeout(() => {
-      Alert.alert(title, message, buttons, { 
-        cancelable: false,
-        // For Android, ensure it's not dismissed accidentally
-        userInterfaceStyle: 'light'
-      });
-    }, 100);
+  // Toast notification function
+  const showToast = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    setToastData({ type, title, message });
+    setToastVisible(true);
+  };
+
+  const hideToast = () => {
+    setToastVisible(false);
   };
 
   // Get current user from AsyncStorage
@@ -129,9 +205,8 @@ export default function ViewProfile() {
         
         const user = await getCurrentUser();
         if (!user) {
-          showAlert("Authentication Required", "Please log in to view your profile.", [
-            { text: "OK", onPress: () => router.push('/auth/LoginScreen') }
-          ]);
+          showToast('error', 'Authentication Required', 'Please log in to view your profile');
+          setTimeout(() => router.push('/auth/LoginScreen'), 2000);
           return;
         }
 
@@ -144,7 +219,7 @@ export default function ViewProfile() {
         }
       } catch (error) {
         console.error("Error loading profile:", error);
-        showAlert("Error", "Failed to load profile data. Please try again.");
+        showToast('error', 'Error', 'Failed to load profile data');
       } finally {
         setLoading(false);
       }
@@ -160,18 +235,12 @@ export default function ViewProfile() {
       const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (!cameraPermission.granted || !mediaLibraryPermission.granted) {
-        showAlert('Permissions Required', 'Camera and photo access permissions are needed to update your profile picture.', [
-          { text: 'Settings', onPress: () => {
-            // You might want to open device settings here
-            console.log('Open settings');
-          }},
-          { text: 'Cancel', style: 'cancel' }
-        ]);
+        showToast('error', 'Permissions Required', 'Camera and photo access needed');
         return false;
       }
       return true;
     } catch (error) {
-      showAlert('Permission Error', 'Failed to request permissions. Please try again.');
+      showToast('error', 'Permission Error', 'Failed to request permissions');
       return false;
     }
   };
@@ -189,24 +258,6 @@ export default function ViewProfile() {
     throw new Error('Failed to convert image');
   };
 
-  const handlePhotoSelection = () => {
-    showAlert('Update Profile Picture', 'Choose an option:', [
-      { 
-        text: 'Camera', 
-        onPress: () => {
-          setTimeout(openCamera, 200); // Small delay to ensure alert is dismissed
-        }
-      },
-      { 
-        text: 'Photo Library', 
-        onPress: () => {
-          setTimeout(openImagePicker, 200); // Small delay to ensure alert is dismissed
-        }
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
   const openCamera = async () => {
     if (!(await requestPermissions())) return;
     
@@ -222,7 +273,7 @@ export default function ViewProfile() {
         await updateProfilePhoto(result.assets[0].uri);
       }
     } catch (error) {
-      showAlert('Camera Error', 'Failed to open camera. Please try again.');
+      showToast('error', 'Camera Error', 'Failed to open camera');
     }
   };
 
@@ -241,7 +292,7 @@ export default function ViewProfile() {
         await updateProfilePhoto(result.assets[0].uri);
       }
     } catch (error) {
-      showAlert('Photo Library Error', 'Failed to open photo library. Please try again.');
+      showToast('error', 'Photo Library Error', 'Failed to open photo library');
     }
   };
 
@@ -260,27 +311,26 @@ export default function ViewProfile() {
         { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
       );
 
-      showAlert('Success', 'Profile picture updated successfully!');
+      showToast('success', 'Success', 'Profile picture updated!');
       setOriginalProfile(prev => ({ ...prev, photo: base64Image }));
       
     } catch (error: unknown) {
       console.error('Photo update error:', error);
       setProfile(prev => ({ ...prev, photo: originalProfile?.photo || null }));
       
-      // Check if it's an axios error by examining error properties
       const axiosError = error as any;
       if (axiosError?.response || axiosError?.request || axiosError?.code) {
         if (axiosError.code === 'ECONNABORTED') {
-          showAlert('Timeout Error', 'Photo upload timed out. Please check your connection and try again.');
+          showToast('error', 'Timeout', 'Photo upload timed out');
         } else if (axiosError.response) {
-          showAlert('Server Error', `Failed to update photo: ${axiosError.response.status}. Please try again.`);
+          showToast('error', 'Server Error', 'Failed to update photo');
         } else if (axiosError.request) {
-          showAlert('Network Error', 'No response from server. Please check your internet connection.');
+          showToast('error', 'Network Error', 'No server response');
         } else {
-          showAlert('Upload Error', 'Failed to upload photo. Please try again.');
+          showToast('error', 'Upload Error', 'Failed to upload photo');
         }
       } else {
-        showAlert('Error', 'Failed to update photo. Please try again.');
+        showToast('error', 'Error', 'Failed to update photo');
       }
     } finally {
       setUploadingPhoto(false);
@@ -299,7 +349,7 @@ export default function ViewProfile() {
 
     for (const { field, name } of required) {
       if (!field) {
-        showAlert("Validation Error", `${name} is required. Please fill in all fields.`);
+        showToast('error', 'Validation Error', `${name} is required`);
         return false;
       }
     }
@@ -307,14 +357,14 @@ export default function ViewProfile() {
     // Additional validation for DOB format
     const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (profileData.dob && !dobRegex.test(profileData.dob.trim())) {
-      showAlert("Invalid Date", "Please enter date of birth in YYYY-MM-DD format (e.g., 1990-01-15).");
+      showToast('error', 'Invalid Date', 'Use format: YYYY-MM-DD');
       return false;
     }
 
     // Phone number validation
     const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
     if (profileData.phone && !phoneRegex.test(profileData.phone.replace(/\s/g, ''))) {
-      showAlert("Invalid Phone", "Please enter a valid phone number.");
+      showToast('error', 'Invalid Phone', 'Enter a valid phone number');
       return false;
     }
 
@@ -344,39 +394,35 @@ export default function ViewProfile() {
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
 
-      showAlert("Success", "Your profile has been updated successfully!", [
-        { text: "OK", onPress: () => {
-          setOriginalProfile({ ...updatedProfile });
-          setIsEditing(false);
-        }}
-      ]);
+      showToast('success', 'Success', 'Profile updated successfully!');
+      setOriginalProfile({ ...updatedProfile });
+      setIsEditing(false);
       
     } catch (error: unknown) {
       console.error("Profile update error:", error);
       
-      // Check if it's an axios error by examining error properties
       const axiosError = error as any;
       if (axiosError?.response || axiosError?.request || axiosError?.code) {
         if (axiosError.code === 'ECONNABORTED') {
-          showAlert("Timeout Error", "Request timed out. Please check your connection and try again.");
+          showToast('error', 'Timeout', 'Request timed out');
         } else if (axiosError.response) {
           const status = axiosError.response.status;
           if (status === 400) {
-            showAlert("Invalid Data", "Please check your input and try again.");
+            showToast('error', 'Invalid Data', 'Check your input');
           } else if (status === 404) {
-            showAlert("Profile Not Found", "Your profile could not be found. Please contact support.");
+            showToast('error', 'Not Found', 'Profile not found');
           } else if (status === 500) {
-            showAlert("Server Error", "Server is experiencing issues. Please try again later.");
+            showToast('error', 'Server Error', 'Try again later');
           } else {
-            showAlert("Update Failed", `Server error (${status}). Please try again.`);
+            showToast('error', 'Update Failed', `Server error: ${status}`);
           }
         } else if (axiosError.request) {
-          showAlert("Network Error", "Could not connect to server. Please check your internet connection.");
+          showToast('error', 'Network Error', 'Check your connection');
         } else {
-          showAlert("Error", "An unexpected error occurred. Please try again.");
+          showToast('error', 'Error', 'Unexpected error occurred');
         }
       } else {
-        showAlert("Error", "Failed to update profile. Please try again.");
+        showToast('error', 'Error', 'Failed to update profile');
       }
     } finally {
       setSaving(false);
@@ -386,25 +432,27 @@ export default function ViewProfile() {
   // Navigation and editing controls
   const handleGoBack = () => {
     if (isEditing) {
-      showAlert("Unsaved Changes", "You have unsaved changes. Are you sure you want to go back?", [
-        { text: "Stay", style: "cancel" },
-        { text: "Leave", onPress: () => router.push('/(tabs)/Home') }
-      ]);
+      setShowUnsavedDialog(true);
     } else {
       router.push('/(tabs)/Home');
     }
   };
 
+  const confirmGoBack = () => {
+    setShowUnsavedDialog(false);
+    router.push('/(tabs)/Home');
+  };
+
   const handleEdit = () => setIsEditing(true);
 
   const handleCancel = () => {
-    showAlert("Cancel Changes", "Are you sure you want to cancel your changes?", [
-      { text: "Continue Editing", style: "cancel" },
-      { text: "Cancel Changes", onPress: () => {
-        if (originalProfile) setProfile({ ...originalProfile });
-        setIsEditing(false);
-      }}
-    ]);
+    setShowCancelDialog(true);
+  };
+
+  const confirmCancel = () => {
+    if (originalProfile) setProfile({ ...originalProfile });
+    setIsEditing(false);
+    setShowCancelDialog(false);
   };
 
   // Loading state
@@ -438,12 +486,24 @@ export default function ViewProfile() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
+      {/* Custom Toast */}
+      <CustomToast
+        visible={toastVisible}
+        type={toastData.type}
+        title={toastData.title}
+        message={toastData.message}
+        onHide={hideToast}
+      />
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <Pressable onPress={handleGoBack} style={styles.backButton}>
-              <Icon name="arrow-left" size={24} color="#007AFF" />
+            <Pressable onPress={handleGoBack} style={styles.iconCircle}>
+              <Image 
+                source={require('../../assets/icons/back-arrow.png')} 
+                style={styles.icon} 
+              />
             </Pressable>
             <Text style={styles.title}>My Profile</Text>
             <Pressable 
@@ -453,7 +513,7 @@ export default function ViewProfile() {
               <Icon 
                 name={isEditing ? "times" : "pencil"} 
                 size={20} 
-                color={isEditing ? "#FF6B6B" : "#007AFF"} 
+                color={isEditing ? "#fa2b2bff" : "#040405ff"} 
               />
             </Pressable>
           </View>
@@ -461,7 +521,8 @@ export default function ViewProfile() {
           {/* Profile Photo */}
           <View style={styles.photoContainer}>
             <Pressable 
-              onPress={handlePhotoSelection}
+              onPress={openImagePicker}
+              onLongPress={openCamera}
               style={styles.photoWrapper}
               disabled={uploadingPhoto}
             >
@@ -486,10 +547,10 @@ export default function ViewProfile() {
                 </>
               )}
             </Pressable>
-            <Text style={styles.photoHintText}>Tap to change photo</Text>
           </View>
 
           {/* Profile Form */}
+          <Text style={styles.Text}  >First Name </Text>
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
             placeholder="First Name"
@@ -497,7 +558,8 @@ export default function ViewProfile() {
             editable={isEditing}
             onChangeText={(text) => setProfile(prev => ({ ...prev, firstName: text }))}
           />
-          
+          <Text style={styles.Text}  >Last Name </Text>
+
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
             placeholder="Last Name"
@@ -505,7 +567,8 @@ export default function ViewProfile() {
             editable={isEditing}
             onChangeText={(text) => setProfile(prev => ({ ...prev, lastName: text }))}
           />
-          
+          <Text style={styles.Text}  >Date of Birth</Text>
+ 
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
             placeholder="Date of Birth (YYYY-MM-DD)"
@@ -513,14 +576,16 @@ export default function ViewProfile() {
             editable={isEditing}
             onChangeText={(text) => setProfile(prev => ({ ...prev, dob: text }))}
           />
-          
+          <Text style={styles.Text}>Email </Text>
+
           <TextInput
             style={[styles.input, styles.disabledInput]}
             placeholder="Email"
             value={profile?.email || ''}
             editable={false}
           />
-          
+          <Text style={styles.Text}>Phone Number </Text>
+
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
             placeholder="Phone Number"
@@ -529,7 +594,8 @@ export default function ViewProfile() {
             keyboardType="phone-pad"
             onChangeText={(text) => setProfile(prev => ({ ...prev, phone: text }))}
           />
-          
+                    <Text style={styles.Text}>Gender</Text>
+
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
             placeholder="Gender"
@@ -554,6 +620,54 @@ export default function ViewProfile() {
           )}
         </View>
       </ScrollView>
+
+      {/* Custom Dialog for Unsaved Changes */}
+      {showUnsavedDialog && (
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogBox}>
+            <Text style={styles.dialogTitle}>Unsaved Changes</Text>
+            <Text style={styles.dialogMessage}>You have unsaved changes. Are you sure?</Text>
+            <View style={styles.dialogButtons}>
+              <Pressable 
+                style={[styles.dialogButton, styles.dialogButtonCancel]} 
+                onPress={() => setShowUnsavedDialog(false)}
+              >
+                <Text style={styles.dialogButtonTextCancel}>Stay</Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.dialogButton, styles.dialogButtonConfirm]} 
+                onPress={confirmGoBack}
+              >
+                <Text style={styles.dialogButtonTextConfirm}>Leave</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Custom Dialog for Cancel Changes */}
+      {showCancelDialog && (
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogBox}>
+            <Text style={styles.dialogTitle}>Cancel Changes</Text>
+            <Text style={styles.dialogMessage}>Discard all changes?</Text>
+            <View style={styles.dialogButtons}>
+              <Pressable 
+                style={[styles.dialogButton, styles.dialogButtonCancel]} 
+                onPress={() => setShowCancelDialog(false)}
+              >
+                <Text style={styles.dialogButtonTextCancel}>Continue Editing</Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.dialogButton, styles.dialogButtonConfirm]} 
+                onPress={confirmCancel}
+              >
+                <Text style={styles.dialogButtonTextConfirm}>Discard</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -569,38 +683,45 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 30,
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f8ff',
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  icon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
   title: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
+    fontSize: 20, 
+    fontWeight: '700', 
     textAlign: 'center', 
     color: '#333',
     flex: 1,
+    fontFamily: 'Montserrat_700Bold',
   },
   editIcon: { 
     padding: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f8ff',
   },
-  photoContainer: { alignItems: 'center', marginBottom: 30 },
+  photoContainer: { alignItems: 'center', marginBottom: 0 },
   photoWrapper: { position: 'relative', marginBottom: 8 },
   photo: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: '#f0f0f0' },
   photoEditOverlay: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#030406ff',
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: '#060606ff',
   },
   photoLoadingContainer: {
     width: 120,
@@ -611,7 +732,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoLoadingText: { marginTop: 8, fontSize: 12, color: '#666' },
-  photoHintText: { fontSize: 14, color: '#666', textAlign: 'center' },
+  Text: { fontSize: 14, color: '#666', textAlign: 'left',marginBottom: 5, fontFamily: 'Prompt_700Bold' },
   input: {
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
@@ -621,10 +742,11 @@ const styles = StyleSheet.create({
     color: '#333',
     backgroundColor: '#f9f9f9',
     borderRadius: 8,
+    fontFamily: 'Montserrat_400Regular',
   },
   editableInput: {
     backgroundColor: '#fff',
-    borderColor: '#007AFF',
+    borderColor: '#111213ff',
     borderWidth: 1,
   },
   disabledInput: {
@@ -632,7 +754,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   saveButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0c0d0fff',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -651,6 +773,94 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  // Toast styles
+  toastContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    zIndex: 9999,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  toastIcon: {
+    marginRight: 12,
+  },
+  toastContent: {
+    flex: 1,
+  },
+  toastTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  toastMessage: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  // Dialog styles
+  dialogOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dialogBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  dialogMessage: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  dialogButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  dialogButtonCancel: {
+    backgroundColor: '#f0f0f0',
+  },
+  dialogButtonConfirm: {
+    backgroundColor: '#0c0d0fff',
+  },
+  dialogButtonTextCancel: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dialogButtonTextConfirm: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

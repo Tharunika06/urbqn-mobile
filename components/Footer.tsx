@@ -7,56 +7,61 @@ export default function Footer() {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Step 1: Manage the active tab state
   const [activeTab, setActiveTab] = useState<string>('');
 
-  // Step 2: Update active tab based on the current pathname
   useEffect(() => {
     if (pathname.includes('Home')) {
       setActiveTab('home');
+    } else if (pathname.includes('Search')) {
+      setActiveTab('search');
     } else if (pathname.includes('Favorites')) {
       setActiveTab('favorites');
-    } else if (pathname.includes('Location')) {
-      setActiveTab('location');
     }
   }, [pathname]);
 
   return (
-    <SafeAreaView >
-    <View style={styles.footerNav}>
-      {/* Home Tab */}
-      <Pressable
-        onPress={() => {
-          setActiveTab('home'); // Update active tab
-          router.push('/(tabs)/Home');
-        }}
-      >
-        <Image
-          source={activeTab === 'home' ? require('../assets/icons/nav-home-active.png') : require('../assets/icons/nav-home.png')}
-          style={styles.navHome}
-        />
-      </Pressable>
+    <SafeAreaView>
+      <View style={styles.footerNav}>
+        {/* Home Tab */}
+        <Pressable
+          onPress={() => {
+            setActiveTab('home');
+            router.push('/(tabs)/Home');
+          }}
+        >
+          <Image
+            source={activeTab === 'home' ? require('../assets/icons/nav-home-active.png') : require('../assets/icons/nav-home.png')}
+            style={styles.navHome}
+          />
+        </Pressable>
 
-      {/* Location Tab */}
-      <Pressable>
-               <Image source={require('../assets/icons/nav-location.png')} style={styles.navIcon} />
-             </Pressable>
+        {/* Search Tab */}
+        <Pressable
+          onPress={() => {
+            setActiveTab('search');
+            router.push('/(tabs)/Search');
+          }}
+        >
+          <Image
+            source={activeTab === 'search' ? require('../assets/icons/nav-search.png') : require('../assets/icons/nav-search.png')}
+            style={styles.navIcon}
+          />
+        </Pressable>
 
-      {/* Favorites Tab */}
-      <Pressable
-        onPress={() => {
-          setActiveTab('favorites'); // Update active tab
-          router.push('/auth/Favorites');
-        }}
-      >
-        <Image
-          source={activeTab === 'favorites' ? require('../assets/icons/nav-heart-active.png') : require('../assets/icons/nav-heart.png')}
-          style={styles.navIcon}
-        />
-      </Pressable>
-    </View>
+        {/* Favorites Tab */}
+        <Pressable
+          onPress={() => {
+            setActiveTab('favorites');
+            router.push('/auth/Favorites');
+          }}
+        >
+          <Image
+            source={activeTab === 'favorites' ? require('../assets/icons/nav-heart-active.png') : require('../assets/icons/nav-heart.png')}
+            style={styles.navIcon}
+          />
+        </Pressable>
+      </View>
     </SafeAreaView>
-   
   );
 }
 
@@ -64,7 +69,7 @@ const styles = StyleSheet.create({
   footerNav: {
     position: 'absolute',
     bottom: -40,
-    left:0,
+    left: 0,
     right: 0,
     height: 100,
     width: '100%',
@@ -72,8 +77,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: '#fff',
-    // borderTopWidth: 1,
-    // borderTopColor: '#eaeaea',
     elevation: 10,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -83,15 +86,13 @@ const styles = StyleSheet.create({
   navIcon: {
     width: 20,
     height: 35,
-    // marginTop: 35,
-    bottom:15,
+    bottom: 15,
     resizeMode: 'contain',
     alignItems: 'center',
   },
   navHome: {
     width: 20,
     height: 25,
-      bottom:15,
-
+    bottom: 15,
   }
 });

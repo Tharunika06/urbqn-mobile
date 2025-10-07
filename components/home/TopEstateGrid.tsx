@@ -51,7 +51,7 @@ export default function TopEstateGrid({ properties }: Props) {
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.152:5000${photo}` };
+      return { uri: `http://192.168.0.154:5000${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };
