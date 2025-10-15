@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import VerificationScreen from './VerificationScreen';
 import { useRouter } from 'expo-router';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
@@ -270,8 +271,13 @@ export default function SignupScreen() {
           </Text>
         </View>
 
-        {/* Verification Modal */}
-        <Modal visible={showVerificationModal} animationType="slide" transparent>
+        <CustomPopup />
+      </View>
+
+      {/* Verification Modal with Blur Overlay */}
+      {showVerificationModal && (
+        <View style={styles.blurOverlayContainer}>
+          <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
           <VerificationScreen
             onClose={() => setShowVerificationModal(false)}
             onContinue={() => {
@@ -281,10 +287,8 @@ export default function SignupScreen() {
             isFromSignup={true}
             email={email}
           />
-        </Modal>
-
-        <CustomPopup />
-      </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -423,6 +427,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
     fontFamily: 'Montserrat_600SemiBold',
+  },
+  blurOverlayContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
   },
   popupOverlay: {
     flex: 1,

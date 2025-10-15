@@ -11,6 +11,8 @@ type PropertyType = {
   price: string;
   image: { uri: string } | any;
   originalProperty?: {
+    id?: string | number;
+    _id?: string;
     rating?: number;
     country?: string;
     status?: 'rent' | 'sale' | 'both';
@@ -20,18 +22,17 @@ type PropertyType = {
 type Props = {
   favorites: PropertyType[];
   onDelete: (id: string | number) => void;
-  onToggleFavorite?: (property: PropertyType) => void;
 };
 
-export default function FavoritesGridView({ favorites, onDelete, onToggleFavorite }: Props) {
+export default function FavoritesGridView({ favorites, onDelete }: Props) {
   const handleHeartPress = (item: PropertyType) => {
-    // Remove from favorites when heart is clicked
-    onDelete(item.id);
+    // Use the original property ID (from the property itself, not the favorite document)
+    const propertyId = item.originalProperty?.id || item.originalProperty?._id || item.id;
     
-    // Also call onToggleFavorite if provided (for additional logic)
-    if (onToggleFavorite) {
-      onToggleFavorite(item);
-    }
+    console.log('Removing favorite - propertyId:', propertyId);
+    
+    // Only call onDelete - this handles all removal logic
+    onDelete(propertyId);
   };
 
   const renderItem = ({ item }: { item: PropertyType }) => {
@@ -56,9 +57,6 @@ export default function FavoritesGridView({ favorites, onDelete, onToggleFavorit
               <Ionicons name="heart" size={16} color="#fff" />
             </LinearGradient>
           </TouchableOpacity>
-          
-          {/* Delete Icon - Top Left Corner - Alternative delete option */}
-         
           
           {/* Price Tag - Bottom Right Corner */}
           <LinearGradient
@@ -127,14 +125,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F4F8',
     borderRadius: 29,
     overflow: 'hidden',
-    // shadowColor: '#000',
-    // shadowOffset: {
-    //   width: 0,
-    //   height: 2,
-    // },
-    // shadowOpacity: 0.1,
-    // shadowRadius: 8,
-    // elevation: 4,
   },
   imageContainer: {
     position: 'relative',
@@ -165,27 +155,6 @@ const styles = StyleSheet.create({
   heartGradient: {
     padding: 6,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteIcon: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  deleteBackground: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: 5,
-    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },

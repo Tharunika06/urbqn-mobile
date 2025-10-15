@@ -1,3 +1,4 @@
+// urban/app/auth/notifications/index.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -19,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import Footer from '../../../components/Footer';
-
+import { getCurrentUserId } from '../../../utils/auth';
 type TabKey = 'All' | 'Review' | 'Sold' | 'House' | 'Villa' | 'Rental';
 
 type Notification = {
@@ -154,6 +155,7 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+   const [userId, setUserId] = useState<string | null>(null); 
   const [popup, setPopup] = useState<{
     visible: boolean;
     title: string;
@@ -191,7 +193,9 @@ export default function NotificationsScreen() {
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/mobile/unread-count`);
+      if (!userId) return;
+      
+      const response = await fetch(`${API_BASE_URL}/mobile/unread-count?userId=${userId}`);
       if (response.ok) {
         const data = await response.json();
         setUnreadCount(data.count);
@@ -207,10 +211,16 @@ export default function NotificationsScreen() {
         setLoading(true);
         setError(null);
       }
+
+      if (!userId) {
+        console.warn('⚠️ No userId available');
+        setLoading(false);
+        return;
+      }
       
-      let url = `${API_BASE_URL}/mobile`;
+      let url = `${API_BASE_URL}/mobile?userId=${userId}`;
       if (activeTab !== 'All') {
-        url += `?type=${activeTab}`;
+        url += `&type=${activeTab}`;
       }
       
       console.log('🔄 Fetching mobile notifications from:', url);
@@ -273,17 +283,36 @@ export default function NotificationsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab]);
+  }, [activeTab, userId]); // ← ADD userId to dependencies
 
+  // ✅ UPDATED: Initialize userId on mount
   useEffect(() => {
-    fetchNotifications();
-  }, [activeTab, fetchNotifications]);
+    const initializeUserId = async () => {
+      const id = await getCurrentUserId();
+      if (id) {
+        setUserId(id);
+        console.log('✅ User ID loaded:', id);
+      } else {
+        console.warn('⚠️ No user ID found - user not logged in');
+      }
+    };
+    
+    initializeUserId();
+  }, []);
+
+  // ✅ UPDATED: Fetch notifications only after userId is set
+  useEffect(() => {
+    if (userId) {
+      fetchNotifications();
+    }
+  }, [activeTab, fetchNotifications, userId]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchNotifications(false);
   };
 
+  // ✅ UPDATED: Delete notification
   const deleteNotification = async (id: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/${id}`, {
@@ -304,11 +333,15 @@ export default function NotificationsScreen() {
     }
   };
 
+  // ✅ UPDATED: Mark as read with userId
   const markAsRead = async (id: string) => {
     try {
+      if (!userId) return;
+
       const response = await fetch(`${API_BASE_URL}/${id}/read`, {
-        method: 'PATCH',
+        method: 'PUT', // Changed from PATCH to PUT
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }), // ← SEND userId
       });
 
       if (response.ok) {
@@ -324,11 +357,15 @@ export default function NotificationsScreen() {
     }
   };
 
+  // ✅ UPDATED: Mark all as read with userId
   const markAllAsRead = async () => {
     try {
+      if (!userId) return;
+
       const response = await fetch(`${API_BASE_URL}/mobile/mark-all-read`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }), // ← SEND userId
       });
 
       if (response.ok) {

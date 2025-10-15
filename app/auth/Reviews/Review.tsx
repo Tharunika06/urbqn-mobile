@@ -262,7 +262,7 @@ const ReviewScreen: React.FC = () => {
           )}
           <Text style={styles.reviewersText}>⭐⭐ 4 + Reviews</Text>
 
-          <Text style={styles.question}>How is your Rental Experience?</Text>
+          <Text style={styles.question}>How is your Experience?</Text>
 
           <StarRating rating={rating} onRatingChange={setRating} />
 

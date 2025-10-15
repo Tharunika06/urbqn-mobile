@@ -15,6 +15,8 @@ type PropertyType = {
   price: string;
   image: { uri: string } | any;
   originalProperty?: {
+    id?: string | number;
+    _id?: string;
     rating?: number;
     country?: string;
     status?: 'rent' | 'sale' | 'both';
@@ -24,15 +26,28 @@ type PropertyType = {
 type Props = {
   favorites: PropertyType[];
   onDelete: (id: string | number) => void;
-  onToggleFavorite?: (property: PropertyType) => void;
 };
 
-export default function FavoritesListView({ favorites, onDelete, onToggleFavorite }: Props) {
-  const renderRightActions = (id: string | number) => (
-    <Pressable style={styles.deleteBox} onPress={() => onDelete(id)}>
-      <Image source={require('../../../assets/icons/delete.png')} style={styles.deleteIcon} />
-    </Pressable>
-  );
+export default function FavoritesListView({ favorites, onDelete }: Props) {
+  const handleHeartPress = (item: PropertyType) => {
+    // Use the original property ID (from the property itself, not the favorite document)
+    const propertyId = item.originalProperty?.id || item.originalProperty?._id || item.id;
+    
+    console.log('Removing favorite from list view - propertyId:', propertyId);
+    
+    // Only call onDelete - this handles all removal logic
+    onDelete(propertyId);
+  };
+
+  const renderRightActions = (item: PropertyType) => {
+    const propertyId = item.originalProperty?.id || item.originalProperty?._id || item.id;
+    
+    return (
+      <Pressable style={styles.deleteBox} onPress={() => onDelete(propertyId)}>
+        <Image source={require('../../../assets/icons/delete.png')} style={styles.deleteIcon} />
+      </Pressable>
+    );
+  };
 
   const getPropertyTypeLabel = (status?: string) => {
     switch (status?.toLowerCase()) {
@@ -54,7 +69,7 @@ export default function FavoritesListView({ favorites, onDelete, onToggleFavorit
     const isFavorite = true;
 
     return (
-      <Swipeable renderRightActions={() => renderRightActions(item.id)}>
+      <Swipeable renderRightActions={() => renderRightActions(item)}>
         <View style={styles.card}>
           {/* Horizontal layout: Image on left, content on right */}
           <View style={styles.cardContent}>
@@ -65,7 +80,7 @@ export default function FavoritesListView({ favorites, onDelete, onToggleFavorit
               {/* Heart Icon - Top Left Corner */}
               <Pressable 
                 style={styles.heartContainer}
-                onPress={() => onToggleFavorite && onToggleFavorite(item)}
+                onPress={() => handleHeartPress(item)}
               >
                 <LinearGradient
                   colors={isFavorite ? ['#FF4995', '#D6034F'] : ['#EF4444', '#EF4444']}
@@ -177,14 +192,6 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    // shadowColor: '#000',
-    // shadowOffset: {
-    //   width: 0,
-    //   height: 2,
-    // },
-    // shadowOpacity: 0.1,
-    // shadowRadius: 4,
-    // elevation: 2,
   },
   propertyBadge: {
     position: 'absolute',
@@ -201,7 +208,6 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     flex: 1,
-    // padding: 16,
     justifyContent: 'center',
     gap: 4,
   },

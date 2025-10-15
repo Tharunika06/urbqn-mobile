@@ -62,4 +62,4 @@ export const apiPost = async (endpoint: string, data: any) => {
   }
 
   return await response.json();
-};
+};  

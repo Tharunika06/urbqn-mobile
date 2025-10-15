@@ -1,3 +1,4 @@
+// Header.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -5,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import BellIcon from '../../assets/icons/bell.png';
 import Greeting from '../../constants/Greeting';
+import { getCurrentUserId } from '../../utils/auth'; // ← ADD THIS IMPORT
 
 interface HeaderProps {
   userEmail: string | null;
@@ -98,25 +100,42 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     }
   };
 
-  // Fetch notification count from the mobile endpoint
+  // ✅ UPDATED: Fetch notification count with userId
   const fetchNotificationCount = async () => {
     try {
-      const response = await fetch(`${NOTIFICATIONS_URL}/mobile/unread-count`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      // Get userId first
+      const userId = await getCurrentUserId();
+      
+      if (!userId) {
+        console.warn('⚠️ No user ID found - user not logged in');
+        setNotificationCount(0);
+        return;
+      }
+
+      console.log('🔍 Fetching notification count for user:', userId);
+
+      // Pass userId to backend
+      const response = await fetch(
+        `${NOTIFICATIONS_URL}/mobile/unread-count?userId=${userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       if (response.ok) {
         const data: UnreadCountResponse = await response.json();
+        console.log('✅ Unread count:', data.count);
         setNotificationCount(data.count);
       } else {
-        console.error('Failed to fetch notification count:', response.status);
+        const errorData = await response.json();
+        console.error('❌ Failed to fetch notification count:', response.status, errorData);
         setNotificationCount(0);
       }
     } catch (error) {
-      console.error("Error fetching notification count:", error);
+      console.error("❌ Error fetching notification count:", error);
       setNotificationCount(0);
     }
   };
@@ -218,17 +237,17 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     return require('../../assets/images/avatar.png');
   };
 
- const getAvatarStyle = () => {
-  if (loading) {
-    return [styles.avatar, { opacity: 0.7 }];
-  }
+  const getAvatarStyle = () => {
+    if (loading) {
+      return [styles.avatar, { opacity: 0.7 }];
+    }
 
-  if (profileExists && userProfile) {
-    return [styles.avatar, { borderWidth: 0 }]; // No border for complete profile
-  } else {
-    return [styles.avatar, { borderWidth: 0 }]; // No border for no profile
-  }
-};
+    if (profileExists && userProfile) {
+      return [styles.avatar, { borderWidth: 0 }];
+    } else {
+      return [styles.avatar, { borderWidth: 0 }];
+    }
+  };
 
   return (
     <View style={styles.header}>

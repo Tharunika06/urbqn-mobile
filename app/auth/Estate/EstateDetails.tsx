@@ -256,7 +256,7 @@ export default function EstateDetails() {
     if (displayMode === 'rent') {
       const rentPrice = parsePrice(property.rentPrice);
       if (rentPrice !== null) return { statusText: 'For Rent', priceText: `₹ ${formatPrice(rentPrice)} /month`, isValid: true };
-      return { statusText: 'For Rent', priceText: 'Not available for rent', isValid: false };
+      return { statusText: 'For Rent', priceText: 'Not for rent ', isValid: false };
     }
     if (displayMode === 'sale') {
       const salePrice = parsePrice(property.salePrice);
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   container: { backgroundColor: '#fff', flex: 1 },
   headerGalleryContainer: { position: 'relative' },
   statusBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8, marginBottom: 4 },
-  statusBadgeRent: { backgroundColor: '#e7f4e9' },
+  statusBadgeRent: { backgroundColor: '#e7f4e9'  },
   statusBadgeSale: { backgroundColor: '#eaf4ff' },
   statusBadgeText: { fontSize: 12, fontFamily: 'Montserrat_600SemiBold' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, alignItems: 'flex-start' },

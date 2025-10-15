@@ -1,4 +1,4 @@
-//components/Button/GradientButton.tsx
+// components/Button/GradientButton.tsx
 import React, { ReactNode } from 'react';
 import {
   Pressable,
@@ -7,16 +7,17 @@ import {
   GestureResponderEvent,
   ViewStyle,
   TextStyle,
-  StyleProp
+  StyleProp,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type GradientButtonProps = {
   onPress: (event: GestureResponderEvent) => void;
- label: string | ReactNode;   colors?: [string, string]; // Allow custom colors, fallback provided
-  buttonStyle?: ViewStyle;
-  textStyle?: TextStyle;
-   style?: StyleProp<ViewStyle>;
+  label: string | ReactNode;
+  colors?: [string, string];
+  buttonStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  disabled?: boolean;
 };
 
 const GradientButton: React.FC<GradientButtonProps> = ({
@@ -25,21 +26,30 @@ const GradientButton: React.FC<GradientButtonProps> = ({
   colors = ['#000000', '#474747'],
   buttonStyle,
   textStyle,
+  disabled = false,
 }) => {
   return (
-<Pressable
-  onPress={onPress}
-  style={({ pressed }) => [
-    { opacity: pressed ? 0.8 : 1 }, // mimic activeOpacity
-  ]}
->
-        <LinearGradient
-        colors={colors}
-        start={{ x: 0, y: 1 }}
-        end={{ x: 0, y: 0 }}
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        { opacity: pressed ? 0.8 : 1 },
+        buttonStyle,
+      ]}
+    >
+      <LinearGradient
+        colors={disabled ? ['#b3b3b3', '#b3b3b3'] : colors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
         style={[styles.button, buttonStyle]}
       >
-        <Text style={[styles.buttonText, textStyle]}>{label}</Text>
+        {typeof label === 'string' ? (
+          <Text style={[styles.buttonText, textStyle]}>
+            {label}
+          </Text>
+        ) : (
+          label
+        )}
       </LinearGradient>
     </Pressable>
   );
@@ -57,7 +67,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 700,
+    fontWeight: '700',
     fontFamily: 'SF Pro',
   },
 });

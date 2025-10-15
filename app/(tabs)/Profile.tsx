@@ -207,10 +207,12 @@ export default function Profile() {
     return emailRegex.test(email);
   };
 
-  // ✅ Validate phone number
+  // ✅ Validate phone number (exactly 10 digits)
   const isValidPhone = (phone: string) => {
-    const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
+    // Remove all non-digit characters
+    const digitsOnly = phone.replace(/\D/g, '');
+    // Check if exactly 10 digits
+    return digitsOnly.length === 10;
   };
 
   // ✅ Save profile with proper validation and error handling
@@ -260,7 +262,7 @@ export default function Profile() {
       if (profile.phone && !isValidPhone(profile.phone)) {
         showPopup(
           "Validation Error", 
-          "Please enter a valid phone number.",
+          "Please enter a valid 10-digit phone number.",
           [{ text: 'OK', onPress: hidePopup }],
           'error'
         );
@@ -317,7 +319,7 @@ export default function Profile() {
                 gender: '',
                 photo: null,
               });
-              router.push('/auth/LoginScreen');
+              router.push('/(tabs)/Home');
             }
           }
         ],
@@ -439,11 +441,16 @@ export default function Profile() {
 
           <TextInput
             style={styles.input}
-            placeholder="Phone Number"
+            placeholder="Phone Number (10 digits)"
             keyboardType="phone-pad"
             value={profile.phone}
-            onChangeText={(text) => setProfile({ ...profile, phone: text })}
+            onChangeText={(text) => {
+              // Only allow digits, max 10
+              const digitsOnly = text.replace(/\D/g, '').slice(0, 10);
+              setProfile({ ...profile, phone: digitsOnly });
+            }}
             editable={!loading}
+            maxLength={10}
           />
 
           {/* Gender Dropdown */}
@@ -523,7 +530,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 5,
     right: '35%',
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#090909ff',
     borderRadius: 20,
     width: 32,
     height: 32,
@@ -573,7 +580,7 @@ const styles = StyleSheet.create({
     minHeight: 52
   },
   button: {
-    backgroundColor: '#6C63FF', 
+    backgroundColor: '#101011ff', 
     padding: 16, 
     borderRadius: 12, 
     marginTop: 20,
@@ -646,11 +653,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   popupButton: {
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#171717ff',
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 12,
     minWidth: 100,
+    marginRight:45
   },
   popupButtonText: {
     color: '#fff',

@@ -389,14 +389,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
               }
             },
           },
-          // {
-          //   text: 'Later',
-          //   onPress: () => {
-          //     hidePopup();
-          //     router.back();
-          //   },
-          //   style: 'cancel',
-          // },
         ],
         'success'
       );
@@ -450,6 +442,11 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         return;
       }
       
+      // ✅ FIXED: Map displayMode to backend purchaseType format
+      // Backend expects: 'buy' or 'rent'
+      // Frontend has: 'sale' or 'rent'
+      const purchaseType = displayMode === 'rent' ? 'rent' : 'buy';
+      
       const transactionDetails = {
         id: clientSecret.split('_secret')[0], 
         customerName: userName,
@@ -460,9 +457,11 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         currency: 'INR',
         property: { id: property._id, name: property.name },
         ownerName: property.ownerName,
-        transactionType: displayMode,
+        purchaseType: purchaseType, // ✅ FIXED: Using purchaseType instead of transactionType
         timestamp: new Date().toISOString(),
       };
+      
+      console.log('💾 Saving transaction with purchaseType:', purchaseType);
       
       const response = await fetch(`${API_BASE_URL}/api/payment/save-transaction`, {
         method: 'POST',
@@ -475,9 +474,9 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         throw new Error(errorData.error || `Server returned an error: ${response.status}`);
       }
       
-      console.log("Transaction details successfully saved to server.");
+      console.log("✅ Transaction details successfully saved to server.");
     } catch (error: any) {
-      console.error("Failed to save transaction on server:", error);
+      console.error("❌ Failed to save transaction on server:", error);
       showPopup(
         "Save Error", 
         `Your payment was successful, but we couldn't save the transaction record. Please contact support with your payment confirmation.\n\nError: ${error.message}`,
@@ -584,7 +583,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
           onPress={handleBuyRentClick}
           label={getBuyButtonText()}
           colors={['#000000', '#474747']}
-          // disabled={!isValid || !displayMode || isProcessing}
           buttonStyle={styles.buyCTA}
           textStyle={styles.buyText}
         />
@@ -763,7 +761,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 12,
     minWidth: 100,
-    marginRight:60
+    marginRight: 60
   },
   popupButtonText: {
     color: '#fff',
@@ -788,6 +786,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10, 
     marginTop: 5, 
     marginBottom: -30 
+
   },
   buyCTA: { 
     paddingVertical: 14, 
@@ -795,11 +794,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     justifyContent: 'center', 
     flexDirection: 'row',
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.1, 
-    shadowRadius: 6, 
-    elevation: 5 
+
   },
   buyText: { 
     color: '#fff', 

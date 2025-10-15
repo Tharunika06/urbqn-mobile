@@ -31,12 +31,6 @@ export default function Favorites() {
     removeFavorite(id);
   };
 
-  // Handle heart toggle - same as delete for favorites page
-  const handleToggleFavorite = (property: any) => {
-    console.log('Removing from favorites:', property.id);
-    removeFavorite(property.id);
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadFavorites();
@@ -58,7 +52,7 @@ export default function Favorites() {
         <Pressable style={styles.iconCircle} onPress={() => navigation.goBack()}>
           <Image source={icons.backArrow} style={styles.icon} />
         </Pressable>
-<View style={styles.viewDisplay}>
+        <View style={styles.viewDisplay}>
           <Pressable onPress={() => setViewMode('list')}>
             <Image
               source={viewMode === 'list' ? icons.listActive : icons.listInactive}
@@ -72,15 +66,12 @@ export default function Favorites() {
             />
           </Pressable>
         </View>
-    
       </View>
 
       <View style={styles.bottomRow}>
         <Text style={styles.title}>
           <Text style={styles.bold}>{favoriteProperties.length}</Text>  Property
         </Text>
-
-        
       </View>
     </View>
   );
@@ -133,13 +124,11 @@ export default function Favorites() {
             <FavoritesListView 
               favorites={favoriteProperties} 
               onDelete={handleDelete}
-              onToggleFavorite={handleToggleFavorite}
             />
           ) : (
             <FavoritesGridView 
               favorites={favoriteProperties} 
               onDelete={handleDelete}
-              onToggleFavorite={handleToggleFavorite}
             />
           )}
         </View>

@@ -7,13 +7,10 @@ import {
   StyleSheet,
   Dimensions,
   Image,
-  StatusBar,
   Modal,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { useRouter } from 'expo-router';
 import {
   useFonts,
   BebasNeue_400Regular,
@@ -93,7 +90,6 @@ export default function VerificationScreen({
 }: VerificationProps) {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputs = useRef<Array<TextInput | null>>([]);
-  const router = useRouter();
   const [popup, setPopup] = useState<{
     visible: boolean;
     title: string;
@@ -173,59 +169,53 @@ export default function VerificationScreen({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.fullscreen}>
-        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+    <View style={styles.fullscreen}>
+      <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
 
-        <View style={styles.modal}>
-          <Pressable
-            style={styles.backButton}
-            onPress={() => router.push('./auth/LoginScreen')}
-          >
-            <Image
-              source={require('../../assets/icons/back-arrow.png')}
-              style={styles.backIcon}
-            />
-          </Pressable>
-
-          <Text style={styles.heading}>VERIFICATION</Text>
-          <Text style={styles.description}>
-            Enter the 6-digit code that you received on your email.
-          </Text>
-
-          <View style={styles.codeContainer}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => {
-                  inputs.current[index] = ref;
-                }}
-                value={digit}
-                onChangeText={(val) => handleChangeText(val, index)}
-                maxLength={1}
-                keyboardType="numeric"
-                style={styles.codeInput}
-                returnKeyType="next"
-                onSubmitEditing={() => {
-                  if (index < 5) inputs.current[index + 1]?.focus();
-                }}
-              />
-            ))}
-          </View>
-
-          <GradientButton
-            onPress={() => handleVerify()}
-            label="Continue"
-            colors={['#000000', '#474747']}
+      <View style={styles.modal}>
+        <Pressable style={styles.backButton} onPress={onClose}>
+          <Image
+            source={require('../../assets/icons/back-arrow.png')}
+            style={styles.backIcon}
           />
+        </Pressable>
 
-          <Text style={styles.footer}>
-            By continuing, you agree to Shopping{' '}
-            <Text style={styles.link}>Conditions of Use</Text> and{' '}
-            <Text style={styles.link}>Privacy Notice</Text>.
-          </Text>
+        <Text style={styles.heading}>VERIFICATION</Text>
+        <Text style={styles.description}>
+          Enter the 6-digit code that you received on your email.
+        </Text>
+
+        <View style={styles.codeContainer}>
+          {code.map((digit, index) => (
+            <TextInput
+              key={index}
+              ref={(ref) => {
+                inputs.current[index] = ref;
+              }}
+              value={digit}
+              onChangeText={(val) => handleChangeText(val, index)}
+              maxLength={1}
+              keyboardType="numeric"
+              style={styles.codeInput}
+              returnKeyType="next"
+              onSubmitEditing={() => {
+                if (index < 5) inputs.current[index + 1]?.focus();
+              }}
+            />
+          ))}
         </View>
+
+        <GradientButton
+          onPress={() => handleVerify()}
+          label="Continue"
+          colors={['#000000', '#474747']}
+        />
+
+        <Text style={styles.footer}>
+          By continuing, you agree to Shopping{' '}
+          <Text style={styles.link}>Conditions of Use</Text> and{' '}
+          <Text style={styles.link}>Privacy Notice</Text>.
+        </Text>
       </View>
 
       <CustomPopup
@@ -235,25 +225,13 @@ export default function VerificationScreen({
         type={popup.type}
         onClose={closePopup}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
   backIcon: {
     width: 24,
     height: 24,
@@ -265,47 +243,6 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 10,
     padding: 8,
-  },
-  image: {
-    width: 380,
-    height: 460,
-    marginTop: 40,
-    marginBottom: 5,
-  },
-  title: {
-    fontSize: 30,
-    textAlign: 'center',
-    color: '#1e1e1e',
-    lineHeight: 42,
-    fontFamily: 'BebasNeue_400Regular',
-  },
-  progressBar: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 2,
-    marginVertical: 20,
-  },
-  progressSegment: {
-    width: 20,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#d3d3d3',
-  },
-  activeSegment: {
-    backgroundColor: '#0a84ff',
-    width: 40,
-  },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 130,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    fontFamily: 'SFPro',
   },
   fullscreen: {
     flex: 1,
@@ -320,6 +257,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     elevation: 10,
     paddingTop: 60,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
   },
   heading: {
     fontSize: 22,

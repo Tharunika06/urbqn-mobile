@@ -107,13 +107,13 @@ export default function SearchBar({ onFilterChange }: SearchBarProps) {
             {/* Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filters</Text>
-              <Pressable onPress={() => setShowFilterModal(false)}>
+              {/* <Pressable onPress={() => setShowFilterModal(false)}>
                 <Ionicons name="close" size={24} color="#252B5C" />
-              </Pressable>
+              </Pressable> */}
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Property Type */}
+  {/* Property Type */}
+            {/* <ScrollView showsVerticalScrollIndicator={false}>
+            
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Property Type</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -137,10 +137,10 @@ export default function SearchBar({ onFilterChange }: SearchBarProps) {
                     </Pressable>
                   ))}
                 </ScrollView>
-              </View>
+              </View> */}
 
               {/* Price Range */}
-              <View style={styles.filterSection}>
+              {/* <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Price Range</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {priceRanges.map((range) => (
@@ -163,10 +163,10 @@ export default function SearchBar({ onFilterChange }: SearchBarProps) {
                     </Pressable>
                   ))}
                 </ScrollView>
-              </View>
+              </View> */}
 
               {/* Status */}
-              <View style={styles.filterSection}>
+              {/* <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Status</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {statusOptions.map((status) => (
@@ -189,10 +189,10 @@ export default function SearchBar({ onFilterChange }: SearchBarProps) {
                     </Pressable>
                   ))}
                 </ScrollView>
-              </View>
+              </View> */}
 
               {/* Sort By */}
-              <View style={styles.filterSection}>
+              {/* <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Sort By</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {sortOptions.map((sort) => (
@@ -216,7 +216,7 @@ export default function SearchBar({ onFilterChange }: SearchBarProps) {
                   ))}
                 </ScrollView>
               </View>
-            </ScrollView>
+            </ScrollView> */}
 
             {/* Footer Buttons */}
             <View style={styles.modalFooter}>

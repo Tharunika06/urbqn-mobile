@@ -7,13 +7,10 @@ import {
   StyleSheet,
   Dimensions,
   Image,
-  StatusBar,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { Montserrat_400Regular } from '@expo-google-fonts/montserrat';
 import GradientButton from '../../components/Button/GradientButton';
@@ -187,79 +184,70 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      <View style={styles.overlay}>
-        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+    <View style={styles.fullScreen}>
+      <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
 
-        <View style={styles.modal}>
-          {/* ⬅️ Custom back arrow image */}
-          <Pressable style={styles.backButton} onPress={onClose}>
-            <Image
-              source={require('../../assets/icons/back-arrow.png')}
-              style={styles.backIcon}
-            />
-          </Pressable>
+      <View style={styles.modalContainer}>
+        <Pressable style={styles.backButton} onPress={onClose}>
+          <Image
+            source={require('../../assets/icons/back-arrow.png')}
+            style={styles.backIcon}
+          />
+        </Pressable>
 
-          <Text style={styles.title}>FORGOT PASSWORD</Text>
-          <Text style={styles.description}>
-            Don't worry, it happens to the best of us. Enter your email address below and we'll help you reset your password.
-          </Text>
+        <Text style={styles.title}>FORGOT PASSWORD</Text>
+        <Text style={styles.description}>
+          Don't worry, it happens to the best of us. Enter your email address below and we'll help you reset your password.
+        </Text>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#6c757d" style={styles.icon} />
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor="#6c757d"
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <Pressable disabled={loading}>
-            <GradientButton
-              onPress={handleSendOTP}
-              label={loading ? 'Sending OTP...' : 'Continue'}
-              colors={['#000000', '#474747']}
-            />
-          </Pressable>
-
-          <Text style={styles.legalText}>
-            By continuing, you agree to Shopping{' '}
-            <Text style={styles.link}>Conditions of Use</Text> and{' '}
-            <Text style={styles.link}>Privacy Notice</Text>
-          </Text>
+        <View style={styles.inputContainer}>
+          <Ionicons name="mail-outline" size={20} color="#6c757d" style={styles.icon} />
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor="#6c757d"
+            value={email}
+            onChangeText={setEmail}
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
         </View>
+
+        <Pressable disabled={loading}>
+          <GradientButton
+            onPress={handleSendOTP}
+            label={loading ? 'Sending OTP...' : 'Continue'}
+            colors={['#000000', '#474747']}
+          />
+        </Pressable>
+
+        <Text style={styles.legalText}>
+          By continuing, you agree to Shopping{' '}
+          <Text style={styles.link}>Conditions of Use</Text> and{' '}
+          <Text style={styles.link}>Privacy Notice</Text>
+        </Text>
       </View>
 
       <CustomPopup />
-    </SafeAreaView>
+    </View>
   );
 }
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-  safeArea: {
+  fullScreen: {
     flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    alignItems: 'center',
   },
-  modal: {
+  modalContainer: {
     width,
     backgroundColor: '#fff',
-    padding: 20,
+    padding: 24,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingTop: 60,
+    paddingBottom: 40,
   },
   backIcon: {
     width: 24,
@@ -277,7 +265,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'BebasNeue_400Regular',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
     letterSpacing: 1,
     color: '#000',
   },
@@ -286,19 +274,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     fontFamily: 'Montserrat_400Regular',
-    marginBottom: 20,
+    marginBottom: 24,
+    lineHeight: 20,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f1f1f1',
     borderRadius: 6,
-    paddingHorizontal: 10,
-    marginBottom: 15,
+    paddingHorizontal: 12,
+    marginBottom: 20,
     height: 50,
   },
   icon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   input: {
     flex: 1,
@@ -306,25 +295,13 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'Montserrat_400Regular',
   },
-  button: {
-    width: '100%',
-    height: 48,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontFamily: 'Montserrat_400Regular',
-  },
   legalText: {
     fontSize: 12,
     color: '#6c6c6c',
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 16,
     fontFamily: 'Montserrat_400Regular',
+    lineHeight: 18,
   },
   link: {
     color: '#0d6efd',

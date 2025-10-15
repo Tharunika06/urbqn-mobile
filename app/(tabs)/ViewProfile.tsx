@@ -23,6 +23,7 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { Montserrat_400Regular } from '@expo-google-fonts/montserrat';
 import { Prompt_400Regular } from '@expo-google-fonts/prompt';
+import { LinearGradient } from 'expo-linear-gradient';
 
 
 interface ProfileData {
@@ -455,6 +456,20 @@ export default function ViewProfile() {
     setShowCancelDialog(false);
   };
 
+  // Logout functionality
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('user');
+      showToast('success', 'Logged Out', 'You have been logged out successfully');
+      setTimeout(() => {
+        router.push('/auth/LoginScreen');
+      }, 1000);
+    } catch (error) {
+      console.error('Logout error:', error);
+      showToast('error', 'Logout Failed', 'Failed to logout. Please try again.');
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -550,7 +565,7 @@ export default function ViewProfile() {
           </View>
 
           {/* Profile Form */}
-          <Text style={styles.Text}  >First Name </Text>
+          <Text style={styles.Text}>First Name </Text>
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
             placeholder="First Name"
@@ -558,7 +573,7 @@ export default function ViewProfile() {
             editable={isEditing}
             onChangeText={(text) => setProfile(prev => ({ ...prev, firstName: text }))}
           />
-          <Text style={styles.Text}  >Last Name </Text>
+          <Text style={styles.Text}>Last Name </Text>
 
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
@@ -567,7 +582,7 @@ export default function ViewProfile() {
             editable={isEditing}
             onChangeText={(text) => setProfile(prev => ({ ...prev, lastName: text }))}
           />
-          <Text style={styles.Text}  >Date of Birth</Text>
+          <Text style={styles.Text}>Date of Birth</Text>
  
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
@@ -594,7 +609,7 @@ export default function ViewProfile() {
             keyboardType="phone-pad"
             onChangeText={(text) => setProfile(prev => ({ ...prev, phone: text }))}
           />
-                    <Text style={styles.Text}>Gender</Text>
+          <Text style={styles.Text}>Gender</Text>
 
           <TextInput
             style={[styles.input, isEditing && styles.editableInput]}
@@ -618,6 +633,22 @@ export default function ViewProfile() {
               )}
             </Pressable>
           )}
+
+          {/* Logout Button */}
+          <Pressable 
+            onPress={handleLogout} 
+            style={styles.logoutButtonWrapper}
+          >
+            <LinearGradient
+              colors={['#474747', '#000000']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.logoutButton}
+            >
+              <Icon name="sign-out" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.logoutButtonText}>Logout</Text>
+            </LinearGradient>
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -799,13 +830,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toastTitle: {
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 2,
   },
   toastMessage: {
-    color: '#fff',
+    color: '#000',
     fontSize: 14,
   },
   // Dialog styles
@@ -859,8 +890,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dialogButtonTextConfirm: {
-    color: '#fff',
+    color: '#000',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  // Logout button styles
+  logoutButtonWrapper: {
+    marginTop: 30,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 8,
+    minWidth: 200,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

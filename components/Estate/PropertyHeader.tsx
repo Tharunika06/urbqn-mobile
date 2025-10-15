@@ -49,9 +49,9 @@ export default function PropertyHeader({
           <Image source={icons.backArrow} style={styles.icon} />
         </Pressable>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Pressable style={styles.iconCircle}>
+          {/* <Pressable style={styles.iconCircle}>
             <Feather name="upload" size={18} color="#1a2238" />
-          </Pressable>
+          </Pressable> */}
           <Pressable
             style={[styles.iconCircle, isFavorite && styles.activeFav]}
             onPress={handleToggleFavorite}

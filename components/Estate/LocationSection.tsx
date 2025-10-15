@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   facilityPill: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, marginRight: 8, borderWidth: 1, borderColor: '#e9ecef' },
   pillText: { color: '#53587A', fontSize: 13, fontWeight: '600' },
   mapWrapper: { marginHorizontal: 16, marginTop: 12, alignItems: 'center' },
-  mapPreview: { width: '100%', height: 160, borderRadius: 20 },
-  viewAllMapBtn: { marginTop: 10 },
-  viewAllMapText: { color: '#1a2238', fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
+  mapPreview: { width: '100%', height: 160, borderRadius: 0 },
+  viewAllMapBtn: { marginTop: 0,backgroundColor: '#F5F4F8' ,width:'100%',borderRadius:5},
+  viewAllMapText: { color: '#1a2238', fontWeight: '600', fontFamily: 'Montserrat_600SemiBold', textAlign: 'center', paddingVertical: 10 },
 });
