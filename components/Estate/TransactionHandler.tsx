@@ -1,4 +1,4 @@
-// urban/app/auth/Estate/TransactionHandler.tsx
+// urban/components/Estate/TransactionHandler.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import GradientButton from '../Button/GradientButton';
 
-const API_BASE_URL = 'http://192.168.0.154:5000';
+const API_BASE_URL = 'http://192.168.1.45:5000';
 
 interface UserProfile {
   _id?: string;
@@ -36,6 +36,9 @@ interface PropertyType {
   rentPrice?: string | number;
   salePrice?: string | number;
   ownerName: string;
+  photo?: string;
+  location?: string;
+  status?: 'rent' | 'sale' | 'both'|'sold';
 }
 
 interface TransactionHandlerProps {
@@ -68,6 +71,10 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   const [hasCompleteProfile, setHasCompleteProfile] = useState(false);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   
+  // New states for availability check
+  const [isPropertySold, setIsPropertySold] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(true);
+  
   const [popupConfig, setPopupConfig] = useState<PopupConfig>({
     visible: false,
     type: 'info',
@@ -81,6 +88,55 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   useEffect(() => {
     loadUserProfile();
   }, []);
+
+  // Check property availability on mount and when displayMode changes
+  useEffect(() => {
+    checkPropertyAvailability();
+  }, [property._id, displayMode]);
+
+  const checkPropertyAvailability = async () => {
+    // Only check for sale properties or when displayMode is sale
+    const propertyStatus = property.status?.toLowerCase();
+    const isSaleProperty = propertyStatus === 'sale' || propertyStatus === 'both';
+    
+    if (displayMode !== 'sale' && !isSaleProperty) {
+      setCheckingAvailability(false);
+      setIsPropertySold(false);
+      return;
+    }
+
+    try {
+      setCheckingAvailability(true);
+      console.log(`🔍 Checking availability for property: ${property._id}`);
+      
+      const response = await fetch(
+        `${API_BASE_URL}/api/properties/${property._id}/availability`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsPropertySold(!data.isAvailable);
+        
+        if (!data.isAvailable) {
+          console.log('⚠️ Property is already sold');
+          console.log(`   Sold on: ${data.soldDate}`);
+          console.log(`   Transaction: ${data.transactionId}`);
+        } else {
+          console.log('✅ Property is available for purchase');
+        }
+      } else {
+        console.warn('⚠️ Could not verify property availability');
+        // Assume available if check fails
+        setIsPropertySold(false);
+      }
+    } catch (error) {
+      console.error('❌ Error checking property availability:', error);
+      // Assume available if check fails
+      setIsPropertySold(false);
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
 
   const showPopup = (
     title: string, 
@@ -280,6 +336,30 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   const handleBuyRentClick = () => {
     if (!displayMode) return;
     
+    // Check if property is sold (only for buy transactions)
+    if (displayMode === 'sale' && isPropertySold) {
+      showPopup(
+        'Property Not Available',
+        'This property has already been sold and is no longer available for purchase. Please explore other available properties.',
+        [
+          { 
+            text: 'Browse Properties', 
+            onPress: () => {
+              hidePopup();
+              router.back();
+            }
+          },
+          { 
+            text: 'OK', 
+            onPress: hidePopup,
+            style: 'cancel'
+          }
+        ],
+        'warning'
+      );
+      return;
+    }
+    
     if (hasCompleteProfile && userName.trim() && userPhone.trim() && validatePhoneNumber(userPhone)) {
       console.log('Profile complete, proceeding directly to payment');
       handlePayment();
@@ -320,6 +400,21 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
   const handlePayment = async () => {
     if (!displayMode || isProcessing) return;
+    
+    // Final availability check before payment
+    if (displayMode === 'sale' && isPropertySold) {
+      showPopup(
+        'Property No Longer Available',
+        'This property was just sold. Please select a different property.',
+        [{ text: 'OK', onPress: () => {
+          hidePopup();
+          router.back();
+        }}],
+        'error'
+      );
+      return;
+    }
+    
     setIsProcessing(true);
 
     const price = displayMode === 'rent' ? parsePrice(property.rentPrice) : parsePrice(property.salePrice);
@@ -367,21 +462,40 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         throw new Error(`Payment failed: ${paymentError.message}`);
       }
 
+      // Save transaction details
       await saveTransactionDetails(clientSecret, price, userName.trim(), userPhone.trim());
+      
+      // Save customer info to AsyncStorage for review tracking
+      await saveCustomerInfoForReview();
+      
+      // Save user profile
       await saveUserProfile();
+
+      // If this was a sale transaction, mark property as sold locally
+      if (displayMode === 'sale') {
+        setIsPropertySold(true);
+      }
 
       showPopup(
         'Payment Successful!',
-        `Your transaction for "${property.name}" was completed successfully. Please take a moment to leave a review.`,
+        `Your ${displayMode === 'rent' ? 'rental' : 'purchase'} of "${property.name}" was completed successfully. Please take a moment to leave a review.`,
         [
           {
-            text: 'Ok',
+            text: 'Review Now',
             onPress: () => {
               hidePopup();
               if (property._id) {
                 router.push({
                   pathname: '/auth/Reviews/Review',
-                  params: { propertyId: property._id.toString() },
+                  params: { 
+                    propertyId: property._id.toString(),
+                    propertyName: property.name,
+                    propertyImage: property.photo || '',
+                    propertyLocation: property.location || '',
+                    customerPhone: userPhone.trim(),
+                    customerEmail: userEmail,
+                    customerName: userName.trim(),
+                  },
                 });
               } else {
                 console.error("Cannot navigate to reviews: property._id is missing.");
@@ -389,6 +503,14 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
               }
             },
           },
+          {
+            text: 'Later',
+            onPress: () => {
+              hidePopup();
+              router.back();
+            },
+            style: 'cancel'
+          }
         ],
         'success'
       );
@@ -400,6 +522,30 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       ], 'error');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const saveCustomerInfoForReview = async () => {
+    try {
+      const trimmedName = userName.trim();
+      const trimmedPhone = userPhone.trim();
+      
+      if (trimmedPhone) {
+        await AsyncStorage.setItem('customerPhone', trimmedPhone);
+        console.log('✅ Customer phone saved for review tracking:', trimmedPhone);
+      }
+      
+      if (userEmail) {
+        await AsyncStorage.setItem('customerEmail', userEmail);
+        console.log('✅ Customer email saved for review tracking:', userEmail);
+      }
+      
+      if (trimmedName) {
+        await AsyncStorage.setItem('customerName', trimmedName);
+        console.log('✅ Customer name saved for review tracking:', trimmedName);
+      }
+    } catch (error) {
+      console.error('❌ Error saving customer info for review:', error);
     }
   };
 
@@ -442,26 +588,25 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         return;
       }
       
-      // ✅ FIXED: Map displayMode to backend purchaseType format
-      // Backend expects: 'buy' or 'rent'
-      // Frontend has: 'sale' or 'rent'
       const purchaseType = displayMode === 'rent' ? 'rent' : 'buy';
       
       const transactionDetails = {
         id: clientSecret.split('_secret')[0], 
-        customerName: userName,
-        customerPhone: userPhone,
+        customerName: name,
+        customerPhone: phone,
         customerEmail: userEmail,
         paymentMethod: 'card',
         amount: amount,
         currency: 'INR',
         property: { id: property._id, name: property.name },
         ownerName: property.ownerName,
-        purchaseType: purchaseType, // ✅ FIXED: Using purchaseType instead of transactionType
+        purchaseType: purchaseType,
         timestamp: new Date().toISOString(),
       };
       
       console.log('💾 Saving transaction with purchaseType:', purchaseType);
+      console.log('📧 Customer Email:', userEmail);
+      console.log('📱 Customer Phone:', phone);
       
       const response = await fetch(`${API_BASE_URL}/api/payment/save-transaction`, {
         method: 'POST',
@@ -474,7 +619,10 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         throw new Error(errorData.error || `Server returned an error: ${response.status}`);
       }
       
+      const result = await response.json();
       console.log("✅ Transaction details successfully saved to server.");
+      console.log("✅ Pending review created:", result.transaction?.transactionId || 'N/A');
+      
     } catch (error: any) {
       console.error("❌ Failed to save transaction on server:", error);
       showPopup(
@@ -487,12 +635,10 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   };
 
   const getBuyButtonText = () => {
+    if (checkingAvailability) return 'Checking...';
+    if (displayMode === 'sale' && isPropertySold) return 'Sold Out';
     if (isProcessing) return 'Processing...';
     if (!displayMode) return 'Select Option';
-    
-    if (hasCompleteProfile) {
-      return displayMode === 'rent' ? 'Rent Now' : 'Buy Now';
-    }
     
     return displayMode === 'rent' ? 'Rent Now' : 'Buy Now';
   };
@@ -579,13 +725,28 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   return (
     <>
       <View style={styles.buyWrapper}>
-        <GradientButton
-          onPress={handleBuyRentClick}
-          label={getBuyButtonText()}
-          colors={['#000000', '#474747']}
-          buttonStyle={styles.buyCTA}
-          textStyle={styles.buyText}
-        />
+        {checkingAvailability ? (
+          <View style={styles.checkingContainer}>
+            <ActivityIndicator size="small" color="#1a73e8" />
+            <Text style={styles.checkingText}>Checking availability...</Text>
+          </View>
+        ) : (
+          <GradientButton
+            onPress={handleBuyRentClick}
+            label={getBuyButtonText()}
+            colors={
+              (displayMode === 'sale' && isPropertySold) 
+                ? ['#9ca3af', '#6b7280']  // Gray colors for sold
+                : ['#000000', '#474747']
+            }
+            buttonStyle={[
+              styles.buyCTA,
+              (displayMode === 'sale' && isPropertySold) && styles.soldButton
+            ]}
+            textStyle={styles.buyText}
+            disabled={isProcessing || (displayMode === 'sale' && isPropertySold)}
+          />
+        )}
       </View>
 
       <CancelPaymentPopup />
@@ -761,7 +922,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 12,
     minWidth: 100,
-    marginRight: 60
   },
   popupButtonText: {
     color: '#fff',
@@ -786,7 +946,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10, 
     marginTop: 5, 
     marginBottom: -30 
-
   },
   buyCTA: { 
     paddingVertical: 14, 
@@ -794,13 +953,29 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     justifyContent: 'center', 
     flexDirection: 'row',
-
+  },
+  soldButton: {
+    opacity: 0.6,
   },
   buyText: { 
     color: '#fff', 
     fontSize: 16, 
     fontWeight: '600', 
     fontFamily: 'Montserrat_600SemiBold' 
+  },
+  checkingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  checkingText: {
+    marginLeft: 8,
+    color: '#666',
+    fontSize: 14,
+    fontFamily: 'Montserrat_500Medium',
   },
   modalOverlay: { 
     flex: 1, 

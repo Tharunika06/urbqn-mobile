@@ -1,9 +1,15 @@
+// urban/components/home/PopularSection.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../types/navigation';
+import { useFavorites } from '../context/FavoriteContext';
 
 interface Property {
-  id: number | string;
+  id?: number | string;
+  _id?: string;
   name?: string;
   title?: string;
   desc?: string;
@@ -18,6 +24,10 @@ interface Property {
   rating: number;
   location?: string;
   country?: string;
+  ownerId?: string | number;
+  ownerName?: string;
+  address?: string;
+  facility?: string[];
 }
 
 interface PopularProperty {
@@ -27,18 +37,18 @@ interface PopularProperty {
 }
 
 type PopularSectionProps = {
-  favorites: (string | number)[];
-  toggleFavorite: (id: string | number) => void;
   apiUrl?: string;
   limit?: number;
 };
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function PopularSection({ 
-  favorites, 
-  toggleFavorite, 
-  apiUrl = 'http://192.168.0.154:5000/api',
+  apiUrl = 'http://192.168.1.45:5000/api',
   limit = 10 
 }: PopularSectionProps) {
+  const navigation = useNavigation<NavigationProp>();
+  const { favorites, toggleFavorite } = useFavorites();
   const [popularProperties, setPopularProperties] = useState<PopularProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +64,7 @@ export default function PopularSection({
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.154:5000${photo}` };
+      return { uri: `http://192.168.1.45:5000${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };
@@ -119,6 +129,28 @@ export default function PopularSection({
     setShowAll(!showAll);
   };
 
+  // Handle navigation to property details - matching FeaturedSection
+  const handlePropertyPress = (property: Property, propertyId: string | number) => {
+    const safeId = property._id || property.id || propertyId;
+    
+    navigation.navigate('auth/Estate/EstateDetails', {
+      property: {
+        ...property,
+        _id: safeId,
+        name: property.name || property.title || 'Property',
+        photo: property.photo || property.image,
+        location: property.country || property.location || 'Unknown Location',
+        price: property.price || property.salePrice || property.rentPrice,
+        rating: property.rating || 4.9,
+        facility: property.facility || [],
+        ownerId: property.ownerId || '',
+        ownerName: property.ownerName || '',
+        address: property.address || property.location || property.country || '',
+        country: property.country || property.location,
+      },
+    });
+  };
+
   // Determine how many properties to display
   const getDisplayProperties = () => {
     if (popularProperties.length <= 2) {
@@ -177,8 +209,30 @@ export default function PopularSection({
           const location = property.country || property.location || 'Location not available';
           const category = property.category || property.status || 'Property';
           
+          // Create a property object that matches TopEstateGrid structure
+          const safeId = property.id || property._id || propertyId;
+          const propertyForFavorite = {
+            ...property,
+            id: safeId,
+            _id: String(safeId),
+            name: title,
+            photo: property.photo || property.image,
+            rating: property.rating || 4.9,
+            country: location,
+            facility: property.facility || [],
+            ownerId: String(property.ownerId || ''),
+            ownerName: property.ownerName || '',
+            address: property.address || location,
+          };
+          const isFavorited = favorites.includes(safeId);
+          
           return (
-            <Pressable key={propertyId} style={styles.card}>
+            <Pressable 
+              key={propertyId} 
+              style={styles.card}
+              onPress={() => handlePropertyPress(property, propertyId)}
+              android_ripple={{ color: 'rgba(26, 115, 232, 0.1)' }}
+            >
               <View style={styles.imageWrapper}>
                 <Image 
                   source={imageSource} 
@@ -189,16 +243,19 @@ export default function PopularSection({
                   defaultSource={require('../../assets/images/placeholder.png')}
                 />
                 <Pressable
-                  onPress={() => toggleFavorite(propertyId)}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    toggleFavorite(propertyForFavorite);
+                  }}
                   style={[
                     styles.favoriteBtn,
-                    { backgroundColor: favorites.includes(propertyId) ? '#ef4444' : '#fff' },
+                    { backgroundColor: isFavorited ? '#ef4444' : '#fff' },
                   ]}
                 >
                   <Ionicons
                     name="heart"
                     size={16}
-                    color={favorites.includes(propertyId) ? '#fff' : '#ef4444'}
+                    color={isFavorited ? '#fff' : '#ef4444'}
                   />
                 </Pressable>
                 <View style={styles.categoryBadge}>
@@ -313,6 +370,10 @@ const styles = StyleSheet.create({
     width: 320,
     height: 190,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   imageWrapper: {
     width: 150,

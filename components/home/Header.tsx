@@ -61,8 +61,8 @@ export default function Header({ userEmail, userName }: HeaderProps) {
   // Notification count state
   const [notificationCount, setNotificationCount] = useState<number>(0);
 
-  const BASE_URL = "http://192.168.0.154:5000/api";
-  const NOTIFICATIONS_URL = "http://192.168.0.154:5000/api/notifications";
+  const BASE_URL = "http://192.168.1.45:5000/api";
+  const NOTIFICATIONS_URL = "http://192.168.1.45:5000/api/notifications";
 
   // Get current user from AsyncStorage
   const getCurrentUser = async (): Promise<UserData | null> => {

@@ -1,11 +1,12 @@
-// Updated TopEstateGrid.tsx
-import React, { useState } from 'react';
+// Updated TopEstateGrid.tsx - Hides sold properties completely
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Image,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -14,12 +15,14 @@ import { RootStackParamList } from '../../types/navigation';
 import GradientButton from '../../components/Button/GradientButton';
 import { useFavorites } from '../context/FavoriteContext';
 
+const API_BASE_URL = 'http://192.168.1.45:5000';
+
 type Property = {
   id?: string | number;
   _id?: string;
   name: string;
   price?: string;
-  status?: 'rent' | 'sale' | 'both'; 
+  status?: 'rent' | 'sale' | 'both' | 'sold'; // ✅ Added 'sold' status
   rentPrice?: string;
   salePrice?: string;
   photo: string | any;
@@ -42,8 +45,36 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function TopEstateGrid({ properties }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const { favorites, toggleFavorite } = useFavorites();
+  const [showAll, setShowAll] = useState(false);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(true);
 
-  const [showAll, setShowAll] = useState(false);  // Track if all properties should be shown
+  useEffect(() => {
+    // Simulate loading delay to ensure properties are loaded
+    const timer = setTimeout(() => {
+      setIsLoadingProperties(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [properties]);
+
+  // ✅ UPDATED: Filter out ALL sold properties (status === 'sold')
+  const availableProperties = properties.filter((property) => {
+    const status = property.status?.toLowerCase();
+    
+    // Completely hide properties with 'sold' status
+    if (status === 'sold') {
+      console.log(`🚫 Hiding sold property: ${property.name}`);
+      return false;
+    }
+    
+    // Show all other properties (rent, sale, both)
+    return true;
+  });
+
+  // Function to check if a property is sold
+  const isPropertySold = (property: Property): boolean => {
+    return property.status?.toLowerCase() === 'sold';
+  };
 
   // Function to get the correct image source
   const getImageSrc = (photo: string | any) => {
@@ -51,7 +82,7 @@ export default function TopEstateGrid({ properties }: Props) {
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.154:5000${photo}` };
+      return { uri: `${API_BASE_URL}${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };
@@ -59,12 +90,17 @@ export default function TopEstateGrid({ properties }: Props) {
     if (photo && typeof photo === 'object') {
       return photo;
     }
-    return require('../../assets/images/placeholder.png'); // Fallback placeholder
+    return require('../../assets/images/placeholder.png');
   };
 
   // Helper function to render the correct price label
   const renderPriceLabel = (property: Property) => {
     const status = property.status?.toLowerCase();
+
+    // This shouldn't happen since we filter sold properties, but keep as safeguard
+    if (status === 'sold') {
+      return <Text style={[styles.priceText, styles.soldText]}>SOLD</Text>;
+    }
 
     if (status === 'both' && property.rentPrice && property.salePrice) {
       return <Text style={styles.priceText}>₹{property.salePrice}</Text>;
@@ -86,93 +122,119 @@ export default function TopEstateGrid({ properties }: Props) {
     return <Text style={styles.priceText}>N/A</Text>;
   };
 
+  if (isLoadingProperties) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color="#1a73e8" />
+        <Text style={styles.loadingText}>Loading properties...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.title}>Top Estates</Text>
+        <Text style={styles.title}>
+          Top Estates
+          {/* {availableProperties.length < properties.length && 
+            ` (${availableProperties.length} available)`} */}
+        </Text>
         <Pressable onPress={() => setShowAll(!showAll)}>
           <Text style={styles.seeAll}>{showAll ? 'See less' : 'See all'}</Text>
         </Pressable>
       </View>
 
-      <View style={styles.grid}>
-        {(showAll ? properties : properties.slice(0, 4)).map((property, index) => {
-          const safeId = property.id ?? property._id ?? index;
-          const isFavorited = favorites.includes(safeId);
+      {availableProperties.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="home-outline" size={48} color="#ccc" />
+          <Text style={styles.emptyText}>No properties available at the moment</Text>
+          <Text style={styles.emptySubtext}>Check back later for new listings</Text>
+        </View>
+      ) : (
+        <View style={styles.grid}>
+          {(showAll ? availableProperties : availableProperties.slice(0, 4)).map((property, index) => {
+            const safeId = property.id ?? property._id ?? index;
+            const isFavorited = favorites.includes(safeId);
+            const imageSource = getImageSrc(property.photo);
 
-          const imageSource = getImageSrc(property.photo);
-
-          return (
-            <Pressable
-              key={`property-${safeId}`}
-              style={styles.card}
-              onPress={() => {
-                navigation.navigate('auth/Estate/EstateDetails', {
-                  property: {
-                    ...property,
-                    _id: safeId,
-                    location: property.country,
-                    price: property.price || property.salePrice || property.rentPrice,
-                    rating: property.rating || 4.9,
-                    facility: property.facility || [],
-                  },
-                });
-              }}
-            >
-              <View style={styles.imageWrap}>
-                <Image
-                  source={imageSource}
-                  style={styles.image}
-                  onError={() => {
-                    console.warn('Failed to load property image for:', property.name);
-                  }}
-                  defaultSource={require('../../assets/images/placeholder.png')}
-                />
-                <Pressable
-                  onPress={() => toggleFavorite(property)}
-                  style={[styles.favoriteBtn, { backgroundColor: isFavorited ? '#ef4444' : '#fff' }]}
-                >
-                  <Ionicons name="heart" size={16} color={isFavorited ? '#fff' : '#ef4444'} />
-                </Pressable>
-                <View style={styles.priceTag}>
-                  <GradientButton
-                    onPress={() => {}}
-                    colors={['#0075FF', '#4C9FFF']}
-                    label={renderPriceLabel(property)}
-                    buttonStyle={{
-                      width: 'auto',
-                      minWidth: 90,
-                      height: 35,
-                      paddingHorizontal: 12,
-                      marginRight: -10,
-                      marginBottom: -8,
-                      borderRadius: 6,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+            return (
+              <Pressable
+                key={`property-${safeId}`}
+                style={styles.card}
+                onPress={() => {
+                  navigation.navigate('auth/Estate/EstateDetails', {
+                    property: {
+                      ...property,
+                      _id: safeId,
+                      location: property.country,
+                      price: property.price || property.salePrice || property.rentPrice,
+                      rating: property.rating || 4.9,
+                      facility: property.facility || [],
+                    },
+                  });
+                }}
+              >
+                <View style={styles.imageWrap}>
+                  <Image
+                    source={imageSource}
+                    style={styles.image}
+                    defaultSource={require('../../assets/images/placeholder.png')}
                   />
+                  <Pressable
+                    onPress={() => {
+                      const propertyWithId = {
+                        ...property,
+                        _id: (property._id || property.id)?.toString(),
+                        id: property.id || property._id,
+                      };
+                      toggleFavorite(propertyWithId);
+                    }}
+                    style={[styles.favoriteBtn, { backgroundColor: isFavorited ? '#ef4444' : '#fff' }]}
+                  >
+                    <Ionicons name="heart" size={16} color={isFavorited ? '#fff' : '#ef4444'} />
+                  </Pressable>
+                  <View style={styles.priceTag}>
+                    <GradientButton
+                      onPress={() => {}}
+                      colors={['#0075FF', '#4C9FFF']}
+                      label={renderPriceLabel(property)}
+                      buttonStyle={{
+                        width: 'auto',
+                        minWidth: 90,
+                        height: 35,
+                        paddingHorizontal: 12,
+                        marginRight: -10,
+                        marginBottom: -8,
+                        borderRadius: 6,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    />
+                  </View>
                 </View>
-              </View>
-              <Text style={styles.propertyTitle} numberOfLines={1}>{property.name}</Text>
-              <Text style={styles.propertyMeta}>
-                <Text>
-                  <Text style={{ color: '#ffc107' }}>★ </Text>
-                  <Text style={{ color: '#53587A' }}>{property.rating || '4.9'}</Text>
+                <Text style={styles.propertyTitle} numberOfLines={1}>
+                  {property.name}
                 </Text>
-                <Ionicons name="location-sharp" size={12} color="#858585" style={{ marginLeft: 8 }} />
-                <Text style={styles.locationText}>{property.country}</Text>
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+                <Text style={styles.propertyMeta}>
+                  <Text>
+                    <Text style={{ color: '#ffc107' }}>★ </Text>
+                    <Text style={{ color: '#53587A' }}>{property.rating || '4.9'}</Text>
+                  </Text>
+                  <Ionicons name="location-sharp" size={12} color="#858585" style={{ marginLeft: 8 }} />
+                  <Text style={styles.locationText}>{property.country}</Text>
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   section: {
-    marginBottom:-44,
+    marginBottom: -44,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -243,6 +305,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Montserrat_600SemiBold',
   },
+  soldText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   priceUnit: {
     fontSize: 8,
     fontWeight: '500',
@@ -267,5 +333,33 @@ const styles = StyleSheet.create({
   locationText: {
     color: '#888',
     fontSize: 12,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#666',
+    fontFamily: 'Montserrat_400Regular',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    marginTop: 12,
+    color: '#999',
+    fontSize: 14,
+    fontFamily: 'Montserrat_400Regular',
+  },
+  emptySubtext: {
+    marginTop: 4,
+    color: '#ccc',
+    fontSize: 12,
+    fontFamily: 'Montserrat_400Regular',
   },
 });

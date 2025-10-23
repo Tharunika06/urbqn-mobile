@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useFavorites } from '../../../components/context/FavoriteContext';
 import TransactionHandler from '../../../components/Estate/TransactionHandler';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import PropertyHeader from '../../../components/Estate/PropertyHeader';
 import PropertyImageGallery from '../../../components/Estate/PropertyImageGallery';
 import PropertyModeSelector from '../../../components/Estate/PropertyModeSelector';
@@ -27,7 +28,7 @@ import PropertyFacilities from '../../../components/Estate/PropertyFacilities';
 import LocationSection from '../../../components/Estate/LocationSection';
 import ReviewsSection from '../../../components/Estate/ReviewsSection';
 
-const API_BASE_URL = 'http://192.168.0.154:5000';
+const API_BASE_URL = 'http://192.168.1.45:5000';
 
 type EstateDetailsRouteProp = RouteProp<RootStackParamList, 'auth/Estate/EstateDetails'>;
 
@@ -146,6 +147,13 @@ export default function EstateDetails() {
     type: 'error',
   });
 
+  // Pending review states
+  const [pendingReviewInfo, setPendingReviewInfo] = useState<{
+    hasPendingReview: boolean;
+    customerInfo: any;
+  } | null>(null);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+
   const propertyId = property._id ?? property.name;
   const isFavorite = favorites.includes(String(propertyId));
 
@@ -180,6 +188,192 @@ export default function EstateDetails() {
     return require('../../../assets/images/placeholder.png');
   };
 
+  // Check for pending reviews
+  const checkForPendingReview = async () => {
+    try {
+      // Get customer identifier from AsyncStorage (phone or email)
+      const customerPhone = await AsyncStorage.getItem('customerPhone');
+      const customerEmail = await AsyncStorage.getItem('customerEmail');
+      const customerName = await AsyncStorage.getItem('customerName');
+      
+      const customerIdentifier = customerPhone || customerEmail;
+      
+      if (!customerIdentifier || !property._id) {
+        console.log('🔍 No customer identifier or property ID found');
+        return;
+      }
+
+      console.log('🔍 Checking for pending review...');
+      console.log('   Property ID:', property._id);
+      console.log('   Customer:', customerIdentifier);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/reviews/pending/${property._id}/${encodeURIComponent(customerIdentifier)}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Pending review check response:', data);
+
+        if (data.hasPendingReview) {
+          setPendingReviewInfo({
+            hasPendingReview: true,
+            customerInfo: {
+              phone: customerPhone,
+              email: customerEmail,
+              name: customerName || data.customerName || 'Anonymous'
+            }
+          });
+          
+          // Only show popup if not dismissed before
+          if (data.showPopup) {
+            setShowReviewPrompt(true);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error checking pending review:', error);
+    }
+  };
+
+  // Handle review prompt actions
+  const handleReviewPromptAction = async (action: 'review' | 'later' | 'dismiss') => {
+    setShowReviewPrompt(false);
+    
+    if (action === 'review') {
+      // Navigate to review screen with customer info
+      router.push({
+        pathname: '/auth/Reviews/Review',
+        params: {
+          propertyId: String(property._id),
+          propertyName: property.name,
+          propertyImage: property.photo,
+          propertyLocation: property.location,
+          customerPhone: pendingReviewInfo?.customerInfo?.phone,
+          customerEmail: pendingReviewInfo?.customerInfo?.email,
+          customerName: pendingReviewInfo?.customerInfo?.name,
+        }
+      });
+    } else if (action === 'later') {
+      // Mark popup as dismissed but keep pending review active
+      try {
+        const customerPhone = await AsyncStorage.getItem('customerPhone');
+        const customerEmail = await AsyncStorage.getItem('customerEmail');
+        const customerIdentifier = customerPhone || customerEmail;
+
+        if (customerIdentifier) {
+          await fetch(
+            `${API_BASE_URL}/api/reviews/pending/dismiss-popup`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                propertyId: property._id,
+                customerIdentifier: customerIdentifier,
+              })
+            }
+          );
+          console.log('✅ Popup dismissed, pending review still active');
+        }
+      } catch (error) {
+        console.error('❌ Error dismissing popup:', error);
+      }
+    } else if (action === 'dismiss') {
+      // Delete the pending review completely
+      deletePendingReview();
+      setPendingReviewInfo(null);
+    }
+  };
+
+  // Delete pending review
+  const deletePendingReview = async () => {
+    try {
+      const customerPhone = await AsyncStorage.getItem('customerPhone');
+      const customerEmail = await AsyncStorage.getItem('customerEmail');
+      const customerIdentifier = customerPhone || customerEmail;
+
+      if (!customerIdentifier) return;
+
+      await fetch(
+        `${API_BASE_URL}/api/reviews/pending/${property._id}/${encodeURIComponent(customerIdentifier)}`,
+        { method: 'DELETE' }
+      );
+      
+      console.log('✅ Pending review deleted');
+    } catch (error) {
+      console.error('❌ Error deleting pending review:', error);
+    }
+  };
+
+  // Handle Add Comment button press
+  const handleAddCommentPress = () => {
+    router.push({
+      pathname: '/auth/Reviews/Review',
+      params: {
+        propertyId: String(property._id),
+        propertyName: property.name,
+        propertyImage: property.photo,
+        propertyLocation: property.location,
+        customerPhone: pendingReviewInfo?.customerInfo?.phone,
+        customerEmail: pendingReviewInfo?.customerInfo?.email,
+        customerName: pendingReviewInfo?.customerInfo?.name,
+      }
+    });
+  };
+
+  // Review Prompt Modal
+  const ReviewPromptModal = () => {
+    const scaleAnim = useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+      if (showReviewPrompt) {
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }).start();
+      } else {
+        scaleAnim.setValue(0);
+      }
+    }, [showReviewPrompt]);
+
+    return (
+      <Modal transparent visible={showReviewPrompt} animationType="fade">
+        <View style={reviewPromptStyles.overlay}>
+          <Animated.View style={[reviewPromptStyles.container, { transform: [{ scale: scaleAnim }] }]}>
+            <View style={reviewPromptStyles.iconCircle}>
+              <Ionicons name="star" size={40} color="#FFC700" />
+            </View>
+            <Text style={reviewPromptStyles.title}>Share Your Experience</Text>
+            <Text style={reviewPromptStyles.message}>
+              You recently completed a transaction for this property. 
+              Would you like to leave a review?
+            </Text>
+            
+            <View style={reviewPromptStyles.buttonsContainer}>
+              <Pressable 
+                style={[reviewPromptStyles.button, reviewPromptStyles.dismissButton]} 
+                onPress={() => handleReviewPromptAction('later')}
+              >
+                <Text style={reviewPromptStyles.dismissButtonText}>Not Now</Text>
+              </Pressable>
+              
+              <Pressable 
+                style={[reviewPromptStyles.button, reviewPromptStyles.reviewButton]} 
+                onPress={() => handleReviewPromptAction('review')}
+              >
+                <Text style={reviewPromptStyles.reviewButtonText}>Write Review</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
+  };
+
   useEffect(() => {
     const initialMode = property.status?.toLowerCase();
     if (initialMode === 'rent' || initialMode === 'sale') {
@@ -192,13 +386,24 @@ export default function EstateDetails() {
       }
     }
     fetchReviews();
+    checkForPendingReview(); // Check for pending reviews on mount
   }, [property]);
+
+  // Re-check pending review when returning from review screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      checkForPendingReview();
+      fetchReviews();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchReviews = async () => {
     if (!property._id) return;
     setLoadingReviews(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reviews/${property._id}`);
+      const response = await fetch(`${API_BASE_URL}/api/reviews/property/${property._id}`);
       if (response.ok) {
         const reviewData = await response.json();
         setReviews(reviewData);
@@ -319,7 +524,6 @@ export default function EstateDetails() {
             handleToggleFavorite={handleToggleFavorite}
             getImageSrc={getImageSrc}
           />
-          {/* <PropertyImageGallery averageRating={averageRating} /> */}
         </View>
 
         <View style={styles.infoRow}>
@@ -355,6 +559,8 @@ export default function EstateDetails() {
           averageRating={averageRating}
           formatDate={formatDate}
           renderStars={renderStars}
+          pendingReviewInfo={pendingReviewInfo}
+          onAddCommentPress={handleAddCommentPress}
         />
         <TransactionHandler
           property={property}
@@ -370,6 +576,8 @@ export default function EstateDetails() {
         type={popup.type}
         onClose={closePopup}
       />
+
+      <ReviewPromptModal />
     </SafeAreaView>
   );
 }
@@ -444,6 +652,76 @@ const popupStyles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+});
+
+const reviewPromptStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  container: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFF9E6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 22,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#1a2238',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 15,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+    paddingHorizontal: 10,
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  dismissButton: {
+    backgroundColor: '#f3f3f3',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  dismissButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  reviewButton: {
+    backgroundColor: '#1a73e8',
+  },
+  reviewButtonText: {
     color: '#fff',
     fontSize: 16,
     fontFamily: 'Montserrat_600SemiBold',

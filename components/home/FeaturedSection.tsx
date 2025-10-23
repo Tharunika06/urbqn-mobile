@@ -1,6 +1,10 @@
+// urban/components/home/FeaturedSection.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../types/navigation';
 
 interface Property {
   id?: string | number;
@@ -14,6 +18,9 @@ interface Property {
   rating: number;
   country: string;
   facility?: string[];
+  ownerId?: string;
+  ownerName?: string;
+  address?: string;
 }
 
 interface FeaturedSectionProps {
@@ -21,10 +28,13 @@ interface FeaturedSectionProps {
   limit?: number;
 }
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function FeaturedSection({ 
-  apiUrl = 'http://192.168.0.154:5000/api',
+  apiUrl = 'http://192.168.1.45:5000/api',
   limit = 10 
 }: FeaturedSectionProps) {
+  const navigation = useNavigation<NavigationProp>();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,13 +44,12 @@ export default function FeaturedSection({
     fetchFeaturedProperties();
   }, []);
 
-  // Function to get the correct image source (same as TopEstateGrid)
   const getImageSrc = (photo: string | any) => {
     if (photo && typeof photo === 'string' && photo.startsWith('data:image/')) {
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.154:5000${photo}` };
+      return { uri: `http://192.168.1.45:5000${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };
@@ -51,7 +60,6 @@ export default function FeaturedSection({
     return require('../../assets/images/placeholder.png');
   };
 
-  // Helper function to render the correct price
   const renderPrice = (property: Property) => {
     const status = property.status?.toLowerCase();
 
@@ -79,8 +87,6 @@ export default function FeaturedSection({
       setLoading(true);
       setError(null);
 
-      // You'll need to create this endpoint or use an existing one
-      // For now, using the popular endpoint as an example
       const url = `${apiUrl}/favorites/popular/${limit}`;
       console.log('Fetching featured properties from:', url);
 
@@ -90,7 +96,6 @@ export default function FeaturedSection({
       console.log('Featured API Response:', JSON.stringify(data, null, 2));
 
       if (data.success && data.properties) {
-        // Extract the property objects if they're nested
         const propertiesList = data.properties.map((item: any) => 
           item.property || item
         );
@@ -111,7 +116,24 @@ export default function FeaturedSection({
     setShowAll(!showAll);
   };
 
-  // Determine how many properties to display
+  const handlePropertyPress = (property: Property, index: number) => {
+    const safeId = property.id ?? property._id ?? index;
+    
+    navigation.navigate('auth/Estate/EstateDetails', {
+      property: {
+        ...property,
+        _id: safeId,
+        location: property.country,
+        price: property.price || property.salePrice || property.rentPrice,
+        rating: property.rating || 4.9,
+        facility: property.facility || [],
+        ownerId: property.ownerId || '',
+        ownerName: property.ownerName || '',
+        address: property.address || '',
+      },
+    });
+  };
+
   const getDisplayProperties = () => {
     if (properties.length <= 2) {
       return properties;
@@ -155,12 +177,16 @@ export default function FeaturedSection({
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {displayProperties.map((property, index) => {
-          const safeId = property.id || property._id || index;
+          const safeId = property.id ?? property._id ?? index;
           const imageSource = getImageSrc(property.photo);
           const priceDisplay = renderPrice(property);
 
           return (
-            <View key={`featured-${safeId}`} style={styles.card}>
+            <Pressable 
+              key={`featured-${safeId}`} 
+              style={styles.card}
+              onPress={() => handlePropertyPress(property, index)}
+            >
               <Image 
                 source={imageSource} 
                 style={styles.image}
@@ -186,7 +212,7 @@ export default function FeaturedSection({
                   )}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -205,7 +231,7 @@ export default function FeaturedSection({
           </Pressable>
         )}
       </View>
-    {renderContent()}
+      {renderContent()}
     </View>
   );
 }
@@ -270,7 +296,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     position: 'relative',
-    // elevation: 4,
   },
   image: {
     width: '100%',
@@ -298,7 +323,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: '100%',
     padding: 12,
-    backgroundColor: '#0000003b',
+    backgroundColor: '#0000000c',
   },
   propertyTitle: {
     color: '#fff',

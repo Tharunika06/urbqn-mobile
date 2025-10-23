@@ -1,7 +1,11 @@
+// File: urban/app/auth/Favorites/FavoritesGridView.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../types/navigation';
 import FavoritesEmptyPage from '../Favorites/FavoriteEmpty';
 
 type PropertyType = {
@@ -16,6 +20,15 @@ type PropertyType = {
     rating?: number;
     country?: string;
     status?: 'rent' | 'sale' | 'both';
+    name?: string;
+    photo?: string | any;
+    location?: string;
+    facility?: string[];
+    ownerId?: string | number;
+    ownerName?: string;
+    address?: string;
+    rentPrice?: string;
+    salePrice?: string;
   };
 };
 
@@ -24,7 +37,11 @@ type Props = {
   onDelete: (id: string | number) => void;
 };
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function FavoritesGridView({ favorites, onDelete }: Props) {
+  const navigation = useNavigation<NavigationProp>();
+
   const handleHeartPress = (item: PropertyType) => {
     // Use the original property ID (from the property itself, not the favorite document)
     const propertyId = item.originalProperty?.id || item.originalProperty?._id || item.id;
@@ -35,19 +52,53 @@ export default function FavoritesGridView({ favorites, onDelete }: Props) {
     onDelete(propertyId);
   };
 
+  const handlePropertyPress = (item: PropertyType) => {
+    const property = item.originalProperty;
+    const propertyId = property?.id || property?._id || item.id;
+    
+    if (!property) {
+      console.warn('Missing property data for:', propertyId);
+      return;
+    }
+
+    navigation.navigate('auth/Estate/EstateDetails', {
+      property: {
+        ...property,
+        _id: propertyId,
+        name: property.name || item.title || 'Property',
+        photo: property.photo || item.image,
+        location: property.country || property.location || 'Unknown Location',
+        price: item.price || property.salePrice || property.rentPrice,
+        rating: property.rating || 4.9,
+        facility: property.facility || [],
+        ownerId: property.ownerId || '',
+        ownerName: property.ownerName || '',
+        address: property.address || property.location || property.country || '',
+        country: property.country || property.location,
+      },
+    });
+  };
+
   const renderItem = ({ item }: { item: PropertyType }) => {
     const rating = item.originalProperty?.rating || 4.9;
     const location = item.originalProperty?.country || 'Location';
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => handlePropertyPress(item)}
+        activeOpacity={0.7}
+      >
         <View style={styles.imageContainer}>
           <Image source={item.image} style={styles.cardImage} />
           
           {/* Heart Icon - Top Right Corner - Now removes from favorites */}
           <TouchableOpacity 
             style={styles.heartIcon} 
-            onPress={() => handleHeartPress(item)}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleHeartPress(item);
+            }}
             activeOpacity={0.7}
           >
             <LinearGradient
@@ -84,7 +135,7 @@ export default function FavoritesGridView({ favorites, onDelete }: Props) {
             </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

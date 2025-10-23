@@ -55,6 +55,36 @@ export default function SignupScreen() {
     SFPro: require('../../assets/fonts/SFPro-Regular.ttf'),
   });
 
+  // Password validation function - checks all requirements
+  const isValidPassword = (pass: string) => {
+    // Requires: capital letter, lowercase letter, number, symbol, minimum 8 characters
+    const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*#?&]).{8,}$/;
+    return regex.test(pass);
+  };
+
+  // Detailed password validation to show specific errors
+  const validatePasswordDetails = (pass: string) => {
+    const errors: string[] = [];
+    
+    if (pass.length < 8) {
+      errors.push("at least 8 characters");
+    }
+    if (!/[A-Z]/.test(pass)) {
+      errors.push("at least one capital letter");
+    }
+    if (!/[a-z]/.test(pass)) {
+      errors.push("at least one lowercase letter");
+    }
+    if (!/\d/.test(pass)) {
+      errors.push("at least one number");
+    }
+    if (!/[@$!%*#?&]/.test(pass)) {
+      errors.push("at least one symbol (@$!%*#?&)");
+    }
+    
+    return errors;
+  };
+
   const showPopup = (
     title: string,
     message: string,
@@ -139,18 +169,54 @@ export default function SignupScreen() {
   if (!fontsLoaded) return null;
 
   const handleSignup = async () => {
-    if (!email || !password || !agree) {
+    // Check if all fields are filled
+    if (!email || !password) {
       showPopup(
-        'Error',
-        'Please fill all fields and agree to terms.',
+        'Missing Information',
+        'Please enter both email and password.',
+        [{ text: 'OK', onPress: hidePopup }],
+        'warning'
+      );
+      return; // STOP - Don't proceed
+    }
+
+    // Check if terms are agreed
+    if (!agree) {
+      showPopup(
+        'Terms Required',
+        'You must agree to the terms and conditions to continue.',
+        [{ text: 'OK', onPress: hidePopup }],
+        'warning'
+      );
+      return; // STOP - Don't proceed
+    }
+
+    // Validate password requirements
+    const passwordErrors = validatePasswordDetails(password);
+    if (passwordErrors.length > 0) {
+      showPopup(
+        'Invalid Password',
+        `Password must contain:\n• ${passwordErrors.join('\n• ')}`,
         [{ text: 'OK', onPress: hidePopup }],
         'error'
       );
-      return;
+      return; // STOP - Don't proceed to backend
     }
 
+    // Double-check with main validation
+    if (!isValidPassword(password)) {
+      showPopup(
+        'Invalid Password',
+        'Password must be at least 8 characters and include: a capital letter, a lowercase letter, a number, and a symbol (@$!%*#?&).',
+        [{ text: 'OK', onPress: hidePopup }],
+        'error'
+      );
+      return; // STOP - Don't proceed to backend
+    }
+
+    // Only proceed to backend if all validations pass
     try {
-      const response = await fetch('http://192.168.0.154:5000/api/signup', {
+      const response = await fetch('http://192.168.1.45:5000/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -159,11 +225,12 @@ export default function SignupScreen() {
       const result = await response.json();
 
       if (response.ok) {
+        // Only show verification modal if backend accepts
         setShowVerificationModal(true);
       } else {
         showPopup(
           'Signup Failed',
-          result.error || 'Try again later',
+          result.error || 'Unable to create account. Please try again.',
           [{ text: 'OK', onPress: hidePopup }],
           'error'
         );
@@ -171,8 +238,8 @@ export default function SignupScreen() {
     } catch (err) {
       console.error(err);
       showPopup(
-        'Error',
-        'Network error. Please try again.',
+        'Network Error',
+        'Unable to connect to server. Please check your connection and try again.',
         [{ text: 'OK', onPress: hidePopup }],
         'error'
       );
@@ -206,7 +273,7 @@ export default function SignupScreen() {
         <View style={styles.inputContainer}>
           <Ionicons name="lock-closed" size={20} color="#6c757d" style={styles.icon} />
           <TextInput
-            placeholder="Password"
+            placeholder="Password (8+ chars, A-z, 0-9, symbol)"
             placeholderTextColor="#6c757d"
             secureTextEntry={!showPassword}
             style={[textStyle, styles.input]}

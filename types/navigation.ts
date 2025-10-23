@@ -1,3 +1,4 @@
+// urban/types/navigation.ts
 export type RootStackParamList = {
   Login: undefined;
   SelectLocation: undefined;
@@ -15,7 +16,7 @@ export type RootStackParamList = {
       ownerId: string | number;
       ownerName: string;
       address: string;
-      status?: 'rent' | 'sale' | 'both';
+      status?: 'rent' | 'sale' | 'both' | 'sold'; // ✅ Added 'sold'
       rentPrice?: string | number;
       salePrice?: string | number;
       type?: string;
@@ -41,7 +42,7 @@ export type RootStackParamList = {
       ownerId: string | number;
       ownerName: string;
       address: string;
-      status?: 'rent' | 'sale' | 'both';
+      status?: 'rent' | 'sale' | 'both' | 'sold'; // ✅ Added 'sold'
       rentPrice?: string | number;
       salePrice?: string | number;
       type?: string;

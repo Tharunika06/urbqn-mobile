@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import GradientButton from '../../components/Button/GradientButton';
 import { useFavorites } from '../../components/context/FavoriteContext';
+import Footer from '../../components/Footer';
 type Property = {
   id?: string | number;
   _id?: string;
@@ -46,8 +47,8 @@ export default function SearchScreen() {
       setIsLoading(true);
       setError(null);
       
-      console.log('🔄 Fetching properties from API...');
-      const response = await fetch('http://192.168.0.154:5000/api/property');
+      console.log('🔄 Fetching properties');
+      const response = await fetch('http://192.168.1.45:5000/api/property');
       
       console.log('📡 Response status:', response.status);
       console.log('📡 Response ok:', response.ok);
@@ -135,7 +136,7 @@ export default function SearchScreen() {
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.154:5000${photo}` };
+      return { uri: `http://192.168.1.45:5000${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };
@@ -327,7 +328,7 @@ export default function SearchScreen() {
 
       </View>
 
-
+<Footer/>
     </SafeAreaView>
   );
 }
@@ -476,4 +477,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Montserrat_400Regular',
   },
+  
 });

@@ -10,6 +10,11 @@ interface ReviewsSectionProps {
   averageRating: number;
   formatDate: (date: string) => string;
   renderStars: (rating: number, size?: number) => React.JSX.Element[];
+  pendingReviewInfo?: {
+    hasPendingReview: boolean;
+    customerInfo: any;
+  } | null;
+  onAddCommentPress?: () => void;
 }
 
 const textStyle = {
@@ -23,6 +28,8 @@ export default function ReviewsSection({
   averageRating,
   formatDate,
   renderStars,
+  pendingReviewInfo,
+  onAddCommentPress,
 }: ReviewsSectionProps) {
   // State for showing all reviews
   const [showAllReviews, setShowAllReviews] = useState(false);
@@ -67,6 +74,25 @@ export default function ReviewsSection({
             </View>
           </View>
 
+          {/* Pending Review Add Comment Button */}
+          {pendingReviewInfo?.hasPendingReview && onAddCommentPress && (
+            <Pressable
+              style={styles.addCommentCard}
+              onPress={onAddCommentPress}
+            >
+              <View style={styles.addCommentIconContainer}>
+                <Ionicons name="chatbubble-ellipses-outline" size={24} color="#1a73e8" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addCommentTitle}>Share Your Experience</Text>
+                <Text style={styles.addCommentSubtitle}>
+                  Tap to add your review for this property
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </Pressable>
+          )}
+
           {reviews.length > 0 ? (
             <>
               {displayedReviews.map((review, index) => (
@@ -102,29 +128,9 @@ export default function ReviewsSection({
                         : `View all ${reviews.length} reviews`
                       }
                     </Text>
-                    {/* <Ionicons 
-                      name={showAllReviews ? "chevron-up" : "chevron-down"} 
-                      size={20} 
-                      color="#666" 
-                      style={{ marginLeft: 6 }}
-                    /> */}
                   </Pressable>
                 </View>
               )}
-
-              {/* Disabled button when 3 or fewer reviews */}
-              {/* {!hasMoreThanThreeReviews && (
-                <View style={styles.viewAllButtonWrapper}>
-                  <Pressable 
-                    style={styles.viewAllReviewsButtonDisabled}
-                    disabled={true}
-                  >
-                    <Text style={styles.viewAllReviewsTextDisabled}>
-                       {reviews.length} review{reviews.length !== 1 ? 's' : ''}
-                    </Text>
-                  </Pressable>
-                </View>
-              )} */}
             </>
           ) : (
             <View style={styles.noReviewsContainer}>
@@ -147,6 +153,41 @@ const styles = StyleSheet.create({
   ratingStarsRow: { flexDirection: 'row', alignItems: 'center' },
   ratingNumber: { color: '#fff', fontSize: 20, marginBottom: 2, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
   ratingSubtitle: { color: '#dbe4f3', fontSize: 12, textAlign: 'center' },
+  
+  // Add Comment Card Styles
+  addCommentCard: {
+    backgroundColor: '#f0f7ff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: '#d4e7ff',
+    borderStyle: 'dashed',
+  },
+  addCommentIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addCommentTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a2238',
+    fontFamily: 'Montserrat_600SemiBold',
+    marginBottom: 4,
+  },
+  addCommentSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Montserrat_400Regular',
+  },
+  
   reviewCard: { backgroundColor: '#f9f9f9', borderRadius: 20, padding: 16, flexDirection: 'row', gap: 12, marginTop: 20 },
   reviewerImagePlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1a73e8', alignItems: 'center', justifyContent: 'center' },
   reviewerInitial: { color: '#fff', fontSize: 18, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },

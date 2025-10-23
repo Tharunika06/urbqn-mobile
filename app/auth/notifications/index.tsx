@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import Footer from '../../../components/Footer';
 import { getCurrentUserId } from '../../../utils/auth';
+
 type TabKey = 'All' | 'Review' | 'Sold' | 'House' | 'Villa' | 'Rental';
 
 type Notification = {
@@ -45,6 +46,15 @@ interface PopupProps {
   type?: 'success' | 'error' | 'warning' | 'confirm';
   showCancel?: boolean;
 }
+
+// ✅ STATIC IMAGES FOR NOTIFICATIONS
+const NOTIFICATION_IMAGES = {
+  propertyCreated: require('../../../assets/icons/property-created.png'),
+  propertyDeleted: require('../../../assets/icons/property-deleted.png'),
+  ownerNotification: require('../../../assets/icons/owner-icon.png'),
+  defaultProperty: require('../../../assets/icons/default-property.png'),
+  defaultUser: require('../../../assets/icons/placeholder.png'),
+};
 
 const CustomPopup: React.FC<PopupProps> = ({ 
   visible, 
@@ -144,7 +154,7 @@ const icons = {
 
 const TABS: TabKey[] = ['All', 'Review', 'Sold', 'House', 'Villa', 'Rental'];
 
-const API_BASE_URL = 'http://192.168.0.154:5000/api/notifications';
+const API_BASE_URL = 'http://192.168.1.45:5000/api/notifications';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
@@ -155,7 +165,7 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-   const [userId, setUserId] = useState<string | null>(null); 
+  const [userId, setUserId] = useState<string | null>(null); 
   const [popup, setPopup] = useState<{
     visible: boolean;
     title: string;
@@ -170,6 +180,34 @@ export default function NotificationsScreen() {
     type: 'error',
     showCancel: false,
   });
+
+  // ✅ FUNCTION TO GET STATIC IMAGE BASED ON NOTIFICATION TYPE
+  const getNotificationImage = (notification: Notification) => {
+    const message = notification.message.toLowerCase();
+    
+    // Check for property creation
+    if (message.includes('property created') || message.includes('new property')) {
+      return NOTIFICATION_IMAGES.propertyCreated;
+    }
+    
+    // Check for property deletion
+    if (message.includes('property deleted') || message.includes('removed')) {
+      return NOTIFICATION_IMAGES.propertyDeleted;
+    }
+    
+    // Check for owner-related notifications
+    if (message.includes('owner') || notification.type === 'owner') {
+      return NOTIFICATION_IMAGES.ownerNotification;
+    }
+    
+    // Check if it's a property-related notification
+    if (notification.propertyName || notification.type === 'property') {
+      return NOTIFICATION_IMAGES.defaultProperty;
+    }
+    
+    // Default user icon for other notifications
+    return NOTIFICATION_IMAGES.defaultUser;
+  };
 
   const showPopup = (
     title: string,
@@ -258,9 +296,9 @@ export default function NotificationsScreen() {
       let errorMessage = 'Failed to load notifications';
       
       if (error.name === 'AbortError') {
-        errorMessage = 'Request timeout. Server not responding.\n\nCheck if server is running on:\nhttp://192.168.0.154:5000';
+        errorMessage = 'Request timeout. Server not responding.\n\nCheck if server is running on:\nhttp://192.168.1.45:5000';
       } else if (error.message === 'Network request failed') {
-        errorMessage = 'Cannot connect to server.\n\nTroubleshooting:\n1. Server running?\n2. Same WiFi network?\n3. Firewall blocking?\n\nServer: http://192.168.0.154:5000';
+        errorMessage = 'Cannot connect to server.\n\nTroubleshooting:\n1. Server running?\n2. Same WiFi network?\n3. Firewall blocking?\n\nServer: http://192.168.1.45:5000';
       } else if (error.message.includes('Server error')) {
         errorMessage = `Server error: ${error.message}\n\nCheck server console for errors.`;
       }
@@ -283,9 +321,8 @@ export default function NotificationsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, userId]); // ← ADD userId to dependencies
+  }, [activeTab, userId]);
 
-  // ✅ UPDATED: Initialize userId on mount
   useEffect(() => {
     const initializeUserId = async () => {
       const id = await getCurrentUserId();
@@ -300,7 +337,6 @@ export default function NotificationsScreen() {
     initializeUserId();
   }, []);
 
-  // ✅ UPDATED: Fetch notifications only after userId is set
   useEffect(() => {
     if (userId) {
       fetchNotifications();
@@ -312,7 +348,6 @@ export default function NotificationsScreen() {
     fetchNotifications(false);
   };
 
-  // ✅ UPDATED: Delete notification
   const deleteNotification = async (id: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/${id}`, {
@@ -333,15 +368,14 @@ export default function NotificationsScreen() {
     }
   };
 
-  // ✅ UPDATED: Mark as read with userId
   const markAsRead = async (id: string) => {
     try {
       if (!userId) return;
 
       const response = await fetch(`${API_BASE_URL}/${id}/read`, {
-        method: 'PUT', // Changed from PATCH to PUT
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }), // ← SEND userId
+        body: JSON.stringify({ userId }),
       });
 
       if (response.ok) {
@@ -357,7 +391,6 @@ export default function NotificationsScreen() {
     }
   };
 
-  // ✅ UPDATED: Mark all as read with userId
   const markAllAsRead = async () => {
     try {
       if (!userId) return;
@@ -365,7 +398,7 @@ export default function NotificationsScreen() {
       const response = await fetch(`${API_BASE_URL}/mobile/mark-all-read`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }), // ← SEND userId
+        body: JSON.stringify({ userId }),
       });
 
       if (response.ok) {
@@ -456,12 +489,11 @@ export default function NotificationsScreen() {
         >
           <View style={[styles.card, !item.isRead && styles.unreadCard]}>
             
-            {(item.propertyImage || item.userImage) && (
-              <Image
-                source={{ uri: item.propertyImage || item.userImage }}
-                style={styles.avatar}
-              />
-            )}
+            {/* ✅ USE STATIC IMAGE INSTEAD OF DYNAMIC */}
+            <Image
+              source={getNotificationImage(item)}
+              style={styles.avatar}
+            />
 
             <View style={styles.textGroup}>
               <View style={styles.nameRow}>

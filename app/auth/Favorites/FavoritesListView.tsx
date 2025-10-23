@@ -1,8 +1,12 @@
+// File: urban/app/auth/Favorites/FavoritesListView.tsx
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, Dimensions } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../types/navigation';
 import FavoritesEmptyPage from '../Favorites/FavoriteEmpty';
 
 const { width } = Dimensions.get('window');
@@ -20,6 +24,15 @@ type PropertyType = {
     rating?: number;
     country?: string;
     status?: 'rent' | 'sale' | 'both';
+    name?: string;
+    photo?: string | any;
+    location?: string;
+    facility?: string[];
+    ownerId?: string | number;
+    ownerName?: string;
+    address?: string;
+    rentPrice?: string;
+    salePrice?: string;
   };
 };
 
@@ -28,7 +41,11 @@ type Props = {
   onDelete: (id: string | number) => void;
 };
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function FavoritesListView({ favorites, onDelete }: Props) {
+  const navigation = useNavigation<NavigationProp>();
+
   const handleHeartPress = (item: PropertyType) => {
     // Use the original property ID (from the property itself, not the favorite document)
     const propertyId = item.originalProperty?.id || item.originalProperty?._id || item.id;
@@ -37,6 +54,33 @@ export default function FavoritesListView({ favorites, onDelete }: Props) {
     
     // Only call onDelete - this handles all removal logic
     onDelete(propertyId);
+  };
+
+  const handlePropertyPress = (item: PropertyType) => {
+    const property = item.originalProperty;
+    const propertyId = property?.id || property?._id || item.id;
+    
+    if (!property) {
+      console.warn('Missing property data for:', propertyId);
+      return;
+    }
+
+    navigation.navigate('auth/Estate/EstateDetails', {
+      property: {
+        ...property,
+        _id: propertyId,
+        name: property.name || item.title || 'Property',
+        photo: property.photo || item.image,
+        location: property.country || property.location || 'Unknown Location',
+        price: item.price || property.salePrice || property.rentPrice,
+        rating: property.rating || 4.9,
+        facility: property.facility || [],
+        ownerId: property.ownerId || '',
+        ownerName: property.ownerName || '',
+        address: property.address || property.location || property.country || '',
+        country: property.country || property.location,
+      },
+    });
   };
 
   const renderRightActions = (item: PropertyType) => {
@@ -70,7 +114,11 @@ export default function FavoritesListView({ favorites, onDelete }: Props) {
 
     return (
       <Swipeable renderRightActions={() => renderRightActions(item)}>
-        <View style={styles.card}>
+        <Pressable 
+          style={styles.card}
+          onPress={() => handlePropertyPress(item)}
+          android_ripple={{ color: 'rgba(26, 115, 232, 0.1)' }}
+        >
           {/* Horizontal layout: Image on left, content on right */}
           <View style={styles.cardContent}>
             {/* Property Image Container - Left Side */}
@@ -80,7 +128,10 @@ export default function FavoritesListView({ favorites, onDelete }: Props) {
               {/* Heart Icon - Top Left Corner */}
               <Pressable 
                 style={styles.heartContainer}
-                onPress={() => handleHeartPress(item)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleHeartPress(item);
+                }}
               >
                 <LinearGradient
                   colors={isFavorite ? ['#FF4995', '#D6034F'] : ['#EF4444', '#EF4444']}
@@ -129,7 +180,7 @@ export default function FavoritesListView({ favorites, onDelete }: Props) {
               </View>
             </View>
           </View>
-        </View>
+        </Pressable>
       </Swipeable>
     );
   };

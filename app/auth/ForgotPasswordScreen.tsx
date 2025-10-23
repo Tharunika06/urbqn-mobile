@@ -140,7 +140,7 @@ export default function ForgetPasswordScreen({ onClose, onContinue }: Props) {
 
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.0.154:5000/api/forgot-password', {
+      const response = await fetch('http://192.168.1.45:5000/api/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

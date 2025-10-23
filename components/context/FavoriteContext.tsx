@@ -9,7 +9,7 @@ type Property = {
   _id?: string;
   name: string;
   price?: string;
-  status?: 'rent' | 'sale' | 'both'; 
+  status?: 'rent' | 'sale' | 'both'| 'sold'; 
   rentPrice?: string;
   salePrice?: string;
   photo: string | any;
@@ -65,7 +65,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [favoriteProperties, setFavoriteProperties] = useState<PropertyType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const BASE_URL = "http://192.168.0.154:5000/api";
+  const BASE_URL = "http://192.168.1.45:5000/api";
 
   // Get current user
   const getCurrentUser = async (): Promise<UserData | null> => {
@@ -77,6 +77,15 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
       console.error("Error getting current user:", error);
       return null;
     }
+  };
+
+  // Helper function to normalize property ID
+  const normalizePropertyId = (property: Property): string => {
+    const id = property._id || property.id;
+    if (!id) {
+      throw new Error('Property has no valid ID');
+    }
+    return id.toString();
   };
 
   // Helper function to convert Property to PropertyType
@@ -177,7 +186,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
         return false;
       }
 
-      const propertyId = property.id ?? property._id;
+      const propertyId = normalizePropertyId(property);
       
       console.log('Adding favorite to DB:', { userId: user.email, propertyId }); // Debug log
 
@@ -190,11 +199,12 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
         headers: { 'Content-Type': 'application/json' },
       });
 
-      console.log('Add favorite response:', response.data); // Debug log
+      console.log('✅ Add favorite response:', response.data); // Debug log
       return true;
     } catch (error: any) {
-      console.error('Error adding favorite to database:', error);
+      console.error('❌ Error adding favorite to database:', error);
       if (error.response) {
+        console.error('Response status:', error.response.status);
         console.error('Response data:', error.response.data);
       }
       return false;
@@ -202,7 +212,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // Remove favorite from database using email as userId
-  const removeFavoriteFromDb = async (propertyId: string | number): Promise<boolean> => {
+  const removeFavoriteFromDb = async (propertyIdOrProperty: string | number | Property): Promise<boolean> => {
     try {
       const user = await getCurrentUser();
       if (!user || !user.email) {
@@ -210,18 +220,34 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
         return false;
       }
 
-      console.log('Removing favorite from DB:', { userId: user.email, propertyId }); // Debug log
+      // Handle both property object and direct ID
+      let propertyId: string;
+      if (typeof propertyIdOrProperty === 'object') {
+        propertyId = normalizePropertyId(propertyIdOrProperty);
+      } else {
+        propertyId = propertyIdOrProperty.toString();
+      }
+
+      console.log('🗑️ Removing favorite from DB:', { userId: user.email, propertyId }); // Debug log
 
       const response = await axios.delete(`${BASE_URL}/favorites/${user.email}/${propertyId}`, {
         timeout: 10000,
       });
 
-      console.log('Remove favorite response:', response.data); // Debug log
-      return true;
+      console.log('✅ Remove favorite response:', response.data); // Debug log
+      const data = response.data as { success: boolean };
+      return data.success === true;
     } catch (error: any) {
-      console.error('Error removing favorite from database:', error);
+      console.error('❌ Error removing favorite from database:', error);
       if (error.response) {
+        console.error('Response status:', error.response.status);
         console.error('Response data:', error.response.data);
+        
+        // If the error is "Favorite not found", it might already be removed
+        if (error.response.data?.message === 'Favorite not found') {
+          console.warn('⚠️ Favorite was already removed from database');
+          return true; // Consider it a success since it's not in the DB anyway
+        }
       }
       return false;
     }
@@ -232,55 +258,59 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
     const success = await removeFavoriteFromDb(id);
     if (success) {
       // Update local state on successful removal
-      setFavorites(prev => prev.filter(favId => favId !== id));
-      setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id !== id));
+      setFavorites(prev => prev.filter(favId => favId.toString() !== id.toString()));
+      setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id.toString() !== id.toString()));
     }
   };
 
   // Toggle favorite with database sync
   const toggleFavorite = async (property: Property) => {
-    const safeId = property.id ?? property._id ?? Date.now();
-    const isFavorited = favorites.includes(safeId);
-    
-    console.log('Toggling favorite:', { propertyId: safeId, isFavorited }); // Debug log
-    
-    // Optimistically update UI first
-    if (isFavorited) {
-      // Remove from favorites
-      setFavorites(prev => prev.filter(id => id !== safeId));
-      setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id !== safeId));
-    } else {
-      // Add to favorites
-      const convertedProperty = convertPropertyToPropertyType(property);
-      setFavorites(prev => [...prev, safeId]);
-      setFavoriteProperties(prevProps => [...prevProps, convertedProperty]);
-    }
-
-    // Then sync with database
-    let dbSuccess = false;
-    if (isFavorited) {
-      dbSuccess = await removeFavoriteFromDb(safeId);
-    } else {
-      dbSuccess = await addFavoriteToDb(property);
-    }
-
-    // If database operation failed, revert the UI changes
-    if (!dbSuccess) {
-      console.warn('Database operation failed, reverting UI changes');
-      if (isFavorited) {
-        // Restore the favorite
-        const convertedProperty = convertPropertyToPropertyType(property);
-        setFavorites(prev => [...prev, safeId]);
-        setFavoriteProperties(prevProps => [...prevProps, convertedProperty]);
-      } else {
-        // Remove the favorite
-        setFavorites(prev => prev.filter(id => id !== safeId));
-        setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id !== safeId));
-      }
+    try {
+      const propertyId = normalizePropertyId(property);
+      const isFavorited = favorites.some(fav => fav.toString() === propertyId);
       
-      console.warn('Failed to sync favorite with database');
-    } else {
-      console.log('Successfully synced favorite with database');
+      console.log('🔄 Toggling favorite:', { propertyId, isFavorited }); // Debug log
+      
+      // Optimistically update UI first
+      if (isFavorited) {
+        // Remove from favorites
+        setFavorites(prev => prev.filter(id => id.toString() !== propertyId));
+        setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id.toString() !== propertyId));
+      } else {
+        // Add to favorites
+        const convertedProperty = convertPropertyToPropertyType(property);
+        setFavorites(prev => [...prev, propertyId]);
+        setFavoriteProperties(prevProps => [...prevProps, convertedProperty]);
+      }
+
+      // Then sync with database
+      let dbSuccess = false;
+      if (isFavorited) {
+        dbSuccess = await removeFavoriteFromDb(property);
+      } else {
+        dbSuccess = await addFavoriteToDb(property);
+      }
+
+      // If database operation failed, revert the UI changes
+      if (!dbSuccess) {
+        console.warn('⚠️ Database operation failed, reverting UI changes');
+        if (isFavorited) {
+          // Restore the favorite
+          const convertedProperty = convertPropertyToPropertyType(property);
+          setFavorites(prev => [...prev, propertyId]);
+          setFavoriteProperties(prevProps => [...prevProps, convertedProperty]);
+        } else {
+          // Remove the favorite
+          setFavorites(prev => prev.filter(id => id.toString() !== propertyId));
+          setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id.toString() !== propertyId));
+        }
+        
+        console.error('❌ Failed to sync favorite with database');
+      } else {
+        console.log('✅ Successfully synced favorite with database');
+      }
+    } catch (error) {
+      console.error('❌ Error in toggleFavorite:', error);
     }
   };
 

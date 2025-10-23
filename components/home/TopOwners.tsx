@@ -28,7 +28,7 @@ export default function TopEstateOwners() {
       return { uri: photo };
     }
     if (photo && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.154:5000${photo}` };
+      return { uri: `http://192.168.1.45:5000${photo}` };
     }
     return require('../../assets/images/placeholder.png'); // Adjust path as needed
   };
@@ -41,7 +41,7 @@ export default function TopEstateOwners() {
   useEffect(() => {
     const fetchOwners = async () => {
       try {
-        const res = await axios.get<ApiResponse>('http://192.168.0.154:5000/api/owners'); 
+        const res = await axios.get<ApiResponse>('http://192.168.1.45:5000/api/owners'); 
         
         // Handle the response structure (your backend sends { owners: [...], count, includePhotos })
         if (res.data && res.data.owners && Array.isArray(res.data.owners)) {
