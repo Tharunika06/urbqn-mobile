@@ -596,6 +596,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 12,
     minWidth: 100,
+    marginRight: 58,
   },
   popupButtonText: {
     color: '#fff',

@@ -493,19 +493,33 @@ export default function EstateDetails() {
     }
   };
 
-  const handleToggleFavorite = () => {
-    const propertyForFavorites = {
-      ...property,
-      _id: String(property._id),
-      ownerId: String(property.ownerId || ''),
-      price: property.price ? String(property.price) : undefined,
-      country: property.country ?? 'Unknown',
-      facility: property.facility ?? [],
-      rentPrice: property.rentPrice ? String(property.rentPrice) : undefined,
-      salePrice: property.salePrice ? String(property.salePrice) : undefined,
-      rating: property.rating ?? 0,
-    };
-    toggleFavorite(propertyForFavorites);
+  const handleToggleFavorite = async () => {
+    try {
+      const propertyForFavorites = {
+        ...property,
+        _id: String(property._id),
+        ownerId: String(property.ownerId || ''),
+        price: property.price ? String(property.price) : undefined,
+        country: property.country ?? 'Unknown',
+        facility: property.facility ?? [],
+        rentPrice: property.rentPrice ? String(property.rentPrice) : undefined,
+        salePrice: property.salePrice ? String(property.salePrice) : undefined,
+        rating: property.rating ?? 0,
+      };
+      
+      await toggleFavorite(propertyForFavorites);
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Unable to update favorites. Please check your internet connection and try again.';
+      
+      showPopup(
+        'Connection Error',
+        errorMessage,
+        'error'
+      );
+    }
   };
 
   const { statusText, priceText, isValid } = getDisplayData();

@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: '100%',
     padding: 12,
-    backgroundColor: '#0000000c',
+    backgroundColor: '#00000032',
   },
   propertyTitle: {
     color: '#fff',

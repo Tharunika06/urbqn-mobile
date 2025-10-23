@@ -1,6 +1,6 @@
-// userLoginScreen.tsx - WITH CUSTOM POPUPS
+// userLoginScreen.tsx - WITH REMEMBER ME FUNCTIONALITY
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -48,6 +48,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isFromSignup, setIsFromSignup] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [popupConfig, setPopupConfig] = useState<PopupConfig>({
     visible: false,
@@ -63,6 +64,30 @@ export default function LoginScreen() {
     BebasNeue_400Regular,
     Prompt_700Bold,
   });
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
+
+  const loadSavedCredentials = async () => {
+    try {
+      const savedCredentials = await AsyncStorage.getItem('userCredentials');
+      const rememberMeStatus = await AsyncStorage.getItem('rememberMe');
+      
+      if (savedCredentials && rememberMeStatus === 'true') {
+        const { email: savedEmail, password: savedPassword } = JSON.parse(savedCredentials);
+        setEmail(savedEmail);
+        setPassword(savedPassword);
+        setRememberMe(true);
+        console.log('✅ Loaded saved credentials');
+      }
+    } catch (error) {
+      console.error('Error loading saved credentials:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const showPopup = (
     title: string,
@@ -145,7 +170,23 @@ export default function LoginScreen() {
     color: '#1a2238',
   };
 
-  if (!fontsLoaded) return null;
+  // Handle Remember Me toggle
+  const handleRememberMeToggle = async (value: boolean) => {
+    setRememberMe(value);
+    try {
+      await AsyncStorage.setItem('rememberMe', value.toString());
+      
+      // If turning off remember me, clear saved credentials
+      if (!value) {
+        await AsyncStorage.removeItem('userCredentials');
+        console.log('✅ Cleared saved credentials');
+      }
+    } catch (error) {
+      console.error('Error saving remember me preference:', error);
+    }
+  };
+
+  if (!fontsLoaded || isLoading) return null;
 
   const handleLogin = async () => {
     try {
@@ -158,7 +199,7 @@ export default function LoginScreen() {
       const data = await res.json();
 
       if (res.ok) {
-        // ✅ CRITICAL: Store the authentication token
+        // ✅ Store the authentication token
         if (data.token) {
           await AsyncStorage.setItem('authToken', data.token);
           console.log('✅ Token stored successfully');
@@ -166,17 +207,21 @@ export default function LoginScreen() {
           console.warn('⚠️ No token received from server');
         }
 
-        // ✅ Store complete user data (not just email)
+        // ✅ Store complete user data
         if (data.user) {
           await AsyncStorage.setItem('user', JSON.stringify(data.user));
           console.log('✅ User data stored:', data.user.email);
         }
 
-        // Handle remember me
+        // ✅ Handle remember me - Save credentials ONLY on successful login
         if (rememberMe) {
           await AsyncStorage.setItem('userCredentials', JSON.stringify({ email, password }));
+          await AsyncStorage.setItem('rememberMe', 'true');
+          console.log('✅ Credentials saved for remember me');
         } else {
           await AsyncStorage.removeItem('userCredentials');
+          await AsyncStorage.setItem('rememberMe', 'false');
+          console.log('✅ Credentials not saved (remember me disabled)');
         }
 
         setShowSuccessModal(true);
@@ -276,7 +321,7 @@ export default function LoginScreen() {
           <View style={styles.rememberContainer}>
             <Switch
               value={rememberMe}
-              onValueChange={() => setRememberMe(!rememberMe)}
+              onValueChange={handleRememberMeToggle}
               trackColor={{ false: '#ccc', true: '#0d6efd' }}
               thumbColor="#fff"
             />
@@ -371,15 +416,15 @@ export default function LoginScreen() {
                 style={styles.successImage}
               />
               <Text style={styles.successText}>SUCCESSFULLY LOGGED IN</Text>
-              <Pressable
+              <GradientButton
+                label="Continue"
                 onPress={() => {
                   setShowSuccessModal(false);
                   router.push('/(tabs)/Home');
                 }}
-                style={styles.successButton}
-              >
-                <Text style={styles.successButtonText}>Continue</Text>
-              </Pressable>
+                colors={['#000000', '#474747']}
+                buttonStyle={{ width: 300, height: 55 }}
+              />
             </View>
           </View>
         </Modal>
@@ -545,17 +590,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
     fontFamily: 'BebasNeue_400Regular',
-  },
-  successButton: {
-    backgroundColor: '#000',
-    paddingVertical: 12,
-    paddingHorizontal: 110,
-    marginTop: 15,
-    borderRadius: 10,
-  },
-  successButtonText: {
-    color: '#fff',
-    fontFamily: 'Prompt_700Bold',
   },
   popupOverlay: {
     flex: 1,

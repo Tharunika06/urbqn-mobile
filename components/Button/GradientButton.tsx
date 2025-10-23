@@ -39,8 +39,8 @@ const GradientButton: React.FC<GradientButtonProps> = ({
     >
       <LinearGradient
         colors={disabled ? ['#b3b3b3', '#b3b3b3'] : colors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 0, y: 0 }}
         style={[styles.button, buttonStyle]}
       >
         {typeof label === 'string' ? (

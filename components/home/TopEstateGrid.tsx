@@ -1,4 +1,4 @@
-// Updated TopEstateGrid.tsx - Hides sold properties completely
+// Updated TopEstateGrid.tsx - Gradient favorite button with gradient heart
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
@@ -22,7 +24,7 @@ type Property = {
   _id?: string;
   name: string;
   price?: string;
-  status?: 'rent' | 'sale' | 'both' | 'sold'; // ✅ Added 'sold' status
+  status?: 'rent' | 'sale' | 'both' | 'sold';
   rentPrice?: string;
   salePrice?: string;
   photo: string | any;
@@ -49,7 +51,6 @@ export default function TopEstateGrid({ properties }: Props) {
   const [isLoadingProperties, setIsLoadingProperties] = useState(true);
 
   useEffect(() => {
-    // Simulate loading delay to ensure properties are loaded
     const timer = setTimeout(() => {
       setIsLoadingProperties(false);
     }, 500);
@@ -57,24 +58,17 @@ export default function TopEstateGrid({ properties }: Props) {
     return () => clearTimeout(timer);
   }, [properties]);
 
-  // ✅ UPDATED: Filter out ALL sold properties (status === 'sold')
+  // Filter out ALL sold properties
   const availableProperties = properties.filter((property) => {
     const status = property.status?.toLowerCase();
     
-    // Completely hide properties with 'sold' status
     if (status === 'sold') {
       console.log(`🚫 Hiding sold property: ${property.name}`);
       return false;
     }
     
-    // Show all other properties (rent, sale, both)
     return true;
   });
-
-  // Function to check if a property is sold
-  const isPropertySold = (property: Property): boolean => {
-    return property.status?.toLowerCase() === 'sold';
-  };
 
   // Function to get the correct image source
   const getImageSrc = (photo: string | any) => {
@@ -97,7 +91,6 @@ export default function TopEstateGrid({ properties }: Props) {
   const renderPriceLabel = (property: Property) => {
     const status = property.status?.toLowerCase();
 
-    // This shouldn't happen since we filter sold properties, but keep as safeguard
     if (status === 'sold') {
       return <Text style={[styles.priceText, styles.soldText]}>SOLD</Text>;
     }
@@ -132,13 +125,9 @@ export default function TopEstateGrid({ properties }: Props) {
   }
 
   return (
-    <View style={styles.section}>
+    <View>
       <View style={styles.sectionHeader}>
-        <Text style={styles.title}>
-          Top Estates
-          {/* {availableProperties.length < properties.length && 
-            ` (${availableProperties.length} available)`} */}
-        </Text>
+        <Text style={styles.title}>Top Estates</Text>
         <Pressable onPress={() => setShowAll(!showAll)}>
           <Text style={styles.seeAll}>{showAll ? 'See less' : 'See all'}</Text>
         </Pressable>
@@ -180,6 +169,8 @@ export default function TopEstateGrid({ properties }: Props) {
                     style={styles.image}
                     defaultSource={require('../../assets/images/placeholder.png')}
                   />
+                  
+                  {/* Gradient Favorite Button */}
                   <Pressable
                     onPress={() => {
                       const propertyWithId = {
@@ -189,10 +180,39 @@ export default function TopEstateGrid({ properties }: Props) {
                       };
                       toggleFavorite(propertyWithId);
                     }}
-                    style={[styles.favoriteBtn, { backgroundColor: isFavorited ? '#ef4444' : '#fff' }]}
+                    style={styles.favoriteBtn}
                   >
-                    <Ionicons name="heart" size={16} color={isFavorited ? '#fff' : '#ef4444'} />
+                    {isFavorited ? (
+                      // Favorited: Gradient background with white heart
+                      <LinearGradient
+                        colors={['#D6034F', '#FF4995']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.gradientContainer}
+                      >
+                        <Ionicons name="heart" size={16} color="#fff" />
+                      </LinearGradient>
+                    ) : (
+                      // Not favorited: White background with gradient-colored heart
+                      <View style={styles.whiteContainer}>
+                        <MaskedView
+                          maskElement={
+                            <View style={styles.maskContainer}>
+                              <Ionicons name="heart" size={16} color="#fff" />
+                            </View>
+                          }
+                        >
+                          <LinearGradient
+                            colors={['#D6034F', '#FF4995']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.gradientHeart}
+                          />
+                        </MaskedView>
+                      </View>
+                    )}
                   </Pressable>
+
                   <View style={styles.priceTag}>
                     <GradientButton
                       onPress={() => {}}
@@ -233,9 +253,6 @@ export default function TopEstateGrid({ properties }: Props) {
 }
 
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: -44,
-  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -285,13 +302,40 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     borderRadius: 20,
-    padding: 6,
+    overflow: 'hidden',
     zIndex: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 3,
+  },
+  gradientContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whiteContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  maskContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  gradientHeart: {
+    width: 32,
+    height: 32,
   },
   priceTag: {
     position: 'absolute',

@@ -16,6 +16,7 @@ import Modal from 'react-native-modal';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Footer from '../../../components/Footer';
+
 const screenHeight = Dimensions.get('window').height;
 
 const initialChatData = [
@@ -32,7 +33,7 @@ const initialChatData = [
     name: 'Kathryn Murphy',
     message: 'Ut enim ad minim veniam',
     time: '09:30',
-    online: false, // Added for clarity
+    online: false,
     image: require('../../../assets/images/user1.png'),
   },
   {
@@ -40,7 +41,7 @@ const initialChatData = [
     name: 'Kristin Watson',
     message: 'consectetur adipiscing elit',
     time: '08:15',
-    online: false, // Added for clarity
+    online: false,
     image: require('../../../assets/images/user3.png'),
   },
   {
@@ -48,7 +49,7 @@ const initialChatData = [
     name: 'Ralph Edwards',
     message: 'Excepteur sint occaecat cupidatat non',
     time: '12:50',
-    online: false, // Added for clarity
+    online: false,
     image: require('../../../assets/images/user4.png'),
   },
   {
@@ -64,10 +65,14 @@ const initialChatData = [
     name: 'Arlene McCoy',
     message: 'Duis aute irure dolor in reprehenderit',
     time: '14:00',
-    online: false, // Added for clarity
+    online: false,
     image: require('../../../assets/images/user6.png'),
   },
 ];
+
+const icons = {
+  backArrow: require('../../../assets/icons/back-arrow.png'),
+};
 
 export default function MessagesScreen() {
   const router = useRouter();
@@ -75,9 +80,7 @@ export default function MessagesScreen() {
   const [chats, setChats] = useState(initialChatData);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
-const icons={
-  backArrow: require('../../../assets/icons/back-arrow.png'),
-}
+
   const handleDelete = () => {
     if (selectedChatId) {
       setChats((prev) => prev.filter((chat) => chat.id !== selectedChatId));
@@ -98,30 +101,27 @@ const icons={
   );
 
   const renderItem = ({ item }: { item: any }) => (
-     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
     <Swipeable renderRightActions={() => renderRightActions(item.id)}>
       <Pressable
         style={styles.chatCard}
         onPress={() =>
-          // --- MODIFICATION START ---
-          // Pass all necessary user data to the ChatScreen
           router.push({
             pathname: '../notifications/ChatScreen',
             params: {
               id: item.id,
               name: item.name,
-              image: item.image, // Pass the image asset
-              online: item.online || false, // Pass the online status, defaulting to false
+              image: item.image,
+              online: item.online || false,
             },
           })
-          // --- MODIFICATION END ---
         }
       >
         <Image source={item.image} style={styles.avatar} />
         <View style={styles.chatContent}>
           <Text style={styles.chatName}>{item.name}</Text>
-          <Text style={styles.chatMessage}>{item.message}</Text>
+          <Text style={styles.chatMessage} numberOfLines={1}>
+            {item.message}
+          </Text>
         </View>
         <View style={styles.chatMeta}>
           <Text style={styles.chatTime}>{item.time}</Text>
@@ -129,80 +129,75 @@ const icons={
         </View>
       </Pressable>
     </Swipeable>
-    </SafeAreaView>
   );
 
   return (
-     <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-    <View style={styles.container}>
-      {/* Top Section */}
-      <View style={styles.topSection}>
-         <Pressable style={styles.iconCircle} onPress={() => navigation.goBack()}>
-                         <Image source={icons.backArrow} style={styles.icon} />
-                       </Pressable>
-       
+      <View style={styles.container}>
+        {/* Top Section */}
+        <View style={styles.topSection}>
+          <Pressable style={styles.iconCircle} onPress={() => navigation.goBack()}>
+            <Image source={icons.backArrow} style={styles.icon} />
+          </Pressable>
 
-        <View style={styles.segmentContainer}>
-          <Pressable
-            style={styles.segmentButton}
-            onPress={() => router.push('/auth/notifications')}
-          >
-            <Text style={styles.segmentText}>Notification</Text>
-          </Pressable>
-          <Pressable style={[styles.segmentButton, styles.activeSegment]}>
-            <Text style={[styles.segmentText, styles.activeSegmentText]}>Messages</Text>
-          </Pressable>
+          <View style={styles.segmentContainer}>
+            <Pressable
+              style={styles.segmentButton}
+              onPress={() => router.push('/auth/notifications')}
+            >
+              <Text style={styles.segmentText}>Notification</Text>
+            </Pressable>
+            <Pressable style={[styles.segmentButton, styles.activeSegment]}>
+              <Text style={[styles.segmentText, styles.activeSegmentText]}>Messages</Text>
+            </Pressable>
+          </View>
         </View>
+
+        <Text style={styles.sectionTitle}>All chats</Text>
+
+        <FlatList
+          data={chats}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.flatListContent}
+          showsVerticalScrollIndicator={false}
+        />
+
+        {/* Confirmation Modal */}
+        <Modal
+          isVisible={isModalVisible}
+          onBackdropPress={() => setModalVisible(false)}
+          onBackButtonPress={() => setModalVisible(false)}
+          style={styles.modal}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalBar} />
+            <View style={styles.modalIconCircle}>
+              <Ionicons name="help" size={36} color="#4cd137" />
+            </View>
+            <Text style={styles.modalTitle}>
+              Are you sure want to <Text style={styles.deleteBold}>delete</Text> all your chat?
+            </Text>
+            <Text style={styles.modalSubtitle}>This action can't be undo</Text>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.confirmButton} onPress={handleDelete}>
+                <Text style={styles.confirmText}>Confirm</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
-
-      <Text style={styles.sectionTitle}>All chats</Text>
-
-      <FlatList
-        data={chats}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      />
-
-    
-      {/* Confirmation Modal */}
-      <Modal
-        isVisible={isModalVisible}
-        onBackdropPress={() => setModalVisible(false)}
-        onBackButtonPress={() => setModalVisible(false)}
-        style={styles.modal}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalBar} />
-          <View style={styles.modalIconCircle}>
-            <Ionicons name="help" size={36} color="#4cd137" />
-          </View>
-          <Text style={styles.modalTitle}>
-            Are you sure want to <Text style={styles.deleteBold}>delete</Text> all your chat?
-          </Text>
-          <Text style={styles.modalSubtitle}>This action can’t be undo</Text>
-          <View style={styles.modalButtons}>
-            <Pressable style={styles.cancelButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-            <Pressable style={styles.confirmButton} onPress={handleDelete}>
-              <Text style={styles.confirmText}>Confirm</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-      
-    </View>
-    <Footer/>
+      <Footer />
     </SafeAreaView>
   );
 }
 
-// Styles
 const styles = StyleSheet.create({
-   safeArea: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
@@ -215,7 +210,7 @@ const styles = StyleSheet.create({
   topSection: {
     marginBottom: 12,
   },
-   iconCircle: {
+  iconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -228,15 +223,6 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     resizeMode: 'contain',
-  },
-  backWrapper: {
-    backgroundColor: '#f3f3f3',
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
   },
   segmentContainer: {
     flexDirection: 'row',
@@ -260,6 +246,10 @@ const styles = StyleSheet.create({
   activeSegment: {
     backgroundColor: '#fff',
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   activeSegmentText: {
     color: '#1a2238',
@@ -270,6 +260,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_700Bold',
     color: '#1a2238',
     marginBottom: 12,
+  },
+  flatListContent: {
+    paddingBottom: 100,
   },
   chatCard: {
     flexDirection: 'row',
@@ -292,12 +285,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_700Bold',
     fontSize: 14,
     color: '#1a2238',
+    marginBottom: 2,
   },
   chatMessage: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 12,
     color: '#555',
-    marginTop: 2,
   },
   chatMeta: {
     alignItems: 'flex-end',
@@ -306,24 +299,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_400Regular',
     fontSize: 10,
     color: '#aaa',
+    marginBottom: 4,
   },
   onlineDot: {
     width: 8,
     height: 8,
     backgroundColor: '#4cd137',
     borderRadius: 4,
-    marginTop: 4,
   },
   deleteButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#ff4444',
     justifyContent: 'center',
     alignItems: 'center',
     width: 100,
-    height: '80%',
+    height: '85%',
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
-    marginVertical: 4,
-    alignSelf: 'center',
+    marginBottom: 8,
   },
   modal: {
     justifyContent: 'flex-end',
@@ -373,22 +365,26 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#000',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
     borderRadius: 8,
+    flex: 1,
   },
   confirmButton: {
     backgroundColor: '#f0f0f0',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
     borderRadius: 8,
+    flex: 1,
   },
   cancelText: {
     color: '#fff',
     fontFamily: 'Montserrat_600SemiBold',
+    textAlign: 'center',
   },
   confirmText: {
     color: '#1a2238',
     fontFamily: 'Montserrat_600SemiBold',
+    textAlign: 'center',
   },
 });

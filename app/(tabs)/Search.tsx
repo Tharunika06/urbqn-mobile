@@ -9,6 +9,7 @@ import { RootStackParamList } from '../../types/navigation';
 import GradientButton from '../../components/Button/GradientButton';
 import { useFavorites } from '../../components/context/FavoriteContext';
 import Footer from '../../components/Footer';
+
 type Property = {
   id?: string | number;
   _id?: string;
@@ -241,6 +242,8 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
+      {/* Header with Search Bar */}
       <View style={styles.header}>
         <View style={styles.searchBar}>
           <Image source={require('../../assets/icons/search-icon.png')} style={styles.icon} />
@@ -260,6 +263,7 @@ export default function SearchScreen() {
         </View>
       </View>
 
+      {/* Results Container */}
       <View style={styles.resultsContainer}>
         {isLoading ? (
           <View style={styles.emptyState}>
@@ -272,15 +276,9 @@ export default function SearchScreen() {
             <Text style={styles.emptySubtext}>{error}</Text>
             <Pressable 
               onPress={fetchProperties}
-              style={{
-                marginTop: 16,
-                backgroundColor: '#0075FF',
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-                borderRadius: 8,
-              }}
+              style={styles.retryButton}
             >
-              <Text style={{ color: '#fff', fontWeight: '600' }}>Retry</Text>
+              <Text style={styles.retryButtonText}>Retry</Text>
             </Pressable>
           </View>
         ) : searchQuery === '' ? (
@@ -310,7 +308,7 @@ export default function SearchScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.resultsHeader}>
+          <>
             <Text style={styles.resultsCount}>
               {searchResults.length} {searchResults.length === 1 ? 'property' : 'properties'} found
             </Text>
@@ -323,12 +321,12 @@ export default function SearchScreen() {
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
             />
-          </View>
+          </>
         )}
-
       </View>
 
-<Footer/>
+      {/* Footer */}
+      <Footer />
     </SafeAreaView>
   );
 }
@@ -341,6 +339,8 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingTop: 16,
+    backgroundColor: '#fff',
+    zIndex: 10,
   },
   searchBar: {
     flexDirection: 'row',
@@ -366,9 +366,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  resultsHeader: {
-    flex: 1,
-  },
   resultsCount: {
     fontSize: 16,
     fontWeight: '600',
@@ -377,7 +374,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_600SemiBold',
   },
   listContent: {
-    paddingBottom: 120,
+    paddingBottom: 100,
   },
   row: {
     justifyContent: 'space-between',
@@ -461,7 +458,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
+    paddingBottom: 100,
   },
   emptyText: {
     fontSize: 18,
@@ -477,5 +474,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Montserrat_400Regular',
   },
-  
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: '#0075FF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
 });

@@ -185,27 +185,22 @@ export default function NotificationsScreen() {
   const getNotificationImage = (notification: Notification) => {
     const message = notification.message.toLowerCase();
     
-    // Check for property creation
     if (message.includes('property created') || message.includes('new property')) {
       return NOTIFICATION_IMAGES.propertyCreated;
     }
     
-    // Check for property deletion
     if (message.includes('property deleted') || message.includes('removed')) {
       return NOTIFICATION_IMAGES.propertyDeleted;
     }
     
-    // Check for owner-related notifications
     if (message.includes('owner') || notification.type === 'owner') {
       return NOTIFICATION_IMAGES.ownerNotification;
     }
     
-    // Check if it's a property-related notification
     if (notification.propertyName || notification.type === 'property') {
       return NOTIFICATION_IMAGES.defaultProperty;
     }
     
-    // Default user icon for other notifications
     return NOTIFICATION_IMAGES.defaultUser;
   };
 
@@ -348,17 +343,25 @@ export default function NotificationsScreen() {
     fetchNotifications(false);
   };
 
+  // ✅ NEW: USER-SPECIFIC SOFT DELETE
   const deleteNotification = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/${id}`, {
-        method: 'DELETE',
+      if (!userId) {
+        showPopup('Error', 'User ID not found', 'error');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/mobile/${id}/delete-for-user`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to delete notification');
       }
 
+      // Remove from local state immediately
       setNotifications(prev => prev.filter(notif => notif._id !== id));
       fetchUnreadCount();
       showPopup('Success', 'Notification deleted successfully', 'success');
@@ -414,17 +417,24 @@ export default function NotificationsScreen() {
     }
   };
 
+  // ✅ NEW: CLEAR ALL FOR CURRENT USER ONLY (SOFT DELETE)
   const clearAllNotifications = async () => {
     showPopup(
       'Clear All Notifications',
-      'Are you sure you want to clear all notifications?',
+      'Are you sure you want to clear all notifications? This will only remove them from your view.',
       'confirm',
       async () => {
         closePopup();
         try {
-          const response = await fetch(`${API_BASE_URL}/mobile/clear`, {
-            method: 'DELETE',
+          if (!userId) {
+            showPopup('Error', 'User ID not found', 'error');
+            return;
+          }
+
+          const response = await fetch(`${API_BASE_URL}/mobile/clear-for-user`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
           });
 
           if (response.ok) {
@@ -464,7 +474,7 @@ export default function NotificationsScreen() {
           onPress={() => {
             showPopup(
               'Delete Notification',
-              'Are you sure you want to delete this notification?',
+              'Are you sure you want to delete this notification? This will only remove it from your view.',
               'confirm',
               () => {
                 closePopup();
@@ -489,7 +499,6 @@ export default function NotificationsScreen() {
         >
           <View style={[styles.card, !item.isRead && styles.unreadCard]}>
             
-            {/* ✅ USE STATIC IMAGE INSTEAD OF DYNAMIC */}
             <Image
               source={getNotificationImage(item)}
               style={styles.avatar}

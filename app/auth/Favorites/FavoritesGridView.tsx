@@ -19,7 +19,7 @@ type PropertyType = {
     _id?: string;
     rating?: number;
     country?: string;
-    status?: 'rent' | 'sale' | 'both';
+    status?: 'rent' | 'sale' | 'both'|'sold';
     name?: string;
     photo?: string | any;
     location?: string;
