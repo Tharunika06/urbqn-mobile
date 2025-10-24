@@ -319,7 +319,7 @@ export default function Profile() {
                 gender: '',
                 photo: null,
               });
-              router.push('/auth/LoginScreen');
+              router.push('/auth/Location/select-location');
             }
           }
         ],
@@ -376,7 +376,7 @@ export default function Profile() {
               source={
                 profile.photo
                   ? { uri: profile.photo }
-                  : require('../../assets/images/avatar.png')
+                  : require('../../assets/images/placeholder.png')
               }
               style={styles.photo}
             />

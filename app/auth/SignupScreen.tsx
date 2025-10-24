@@ -349,7 +349,7 @@ export default function SignupScreen() {
             onClose={() => setShowVerificationModal(false)}
             onContinue={() => {
               setShowVerificationModal(false);
-              router.push('/auth/Location/select-location');
+              router.push('/(tabs)/Profile');
             }}
             isFromSignup={true}
             email={email}

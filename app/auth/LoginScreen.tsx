@@ -1,5 +1,4 @@
 // userLoginScreen.tsx - WITH REMEMBER ME FUNCTIONALITY
-
 import React, { useState, useEffect } from 'react';
 import {
   View,

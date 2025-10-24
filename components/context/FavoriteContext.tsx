@@ -76,6 +76,7 @@ interface FavoritesContextType {
   toggleFavorite: (property: Property) => Promise<void>;
   removeFavorite: (id: string | number) => Promise<void>;
   loadFavorites: () => Promise<void>;
+  isFavorite: (id: string | number) => boolean;
   isLoading: boolean;
 }
 
@@ -107,6 +108,11 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
       throw new Error('Property has no valid ID');
     }
     return id.toString();
+  };
+
+  // Helper function to check if a property is favorited
+  const isFavorite = (id: string | number): boolean => {
+    return favorites.some(favId => favId.toString() === id.toString());
   };
 
   // Helper function to convert Property to PropertyType
@@ -409,6 +415,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
       toggleFavorite, 
       removeFavorite, 
       loadFavorites, 
+      isFavorite,
       isLoading 
     }}>
       {children}

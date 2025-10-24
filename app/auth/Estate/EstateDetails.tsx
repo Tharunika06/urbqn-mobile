@@ -460,7 +460,7 @@ export default function EstateDetails() {
   const getDisplayData = () => {
     if (displayMode === 'rent') {
       const rentPrice = parsePrice(property.rentPrice);
-      if (rentPrice !== null) return { statusText: 'For Rent', priceText: `₹ ${formatPrice(rentPrice)} /month`, isValid: true };
+      if (rentPrice !== null) return { statusText: 'For Rent', priceText: `₹ ${formatPrice(rentPrice)}/m`, isValid: true };
       return { statusText: 'For Rent', priceText: 'Not for rent ', isValid: false };
     }
     if (displayMode === 'sale') {

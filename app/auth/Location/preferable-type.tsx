@@ -37,9 +37,12 @@ export default function PreferableType() {
     const isSelected = selected.includes(item.id);
     return (
       <Pressable
-        style={[styles.card, isSelected && styles.selectedCard]}
+        style={({ pressed }) => [
+          styles.card,
+          isSelected && styles.selectedCard,
+          pressed && styles.pressedCard
+        ]}
         onPress={() => toggleSelection(item.id)}
-        activeOpacity={0.9}
       >
         {isSelected && (
           <View style={styles.checkIcon}>
@@ -87,7 +90,7 @@ export default function PreferableType() {
       />
 
       {/* Next Button */}
-      <Pressable style={styles.nextButton} onPress={() => router.push('/(tabs)/Profile')}>
+      <Pressable style={styles.nextButton} onPress={() => router.push('/auth/LoginScreen')}>
         <Text style={styles.nextButtonText}>Next</Text>
       </Pressable>
     </SafeAreaView>
@@ -140,12 +143,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#f6f6f6',
     position: 'relative',
-    // elevation: 2,
   },
   selectedCard: {
     backgroundColor: '#1a73e8',
     borderColor: '#1a73e8',
     borderWidth: 2,
+  },
+  pressedCard: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
   },
   image: {
     width: '90%',

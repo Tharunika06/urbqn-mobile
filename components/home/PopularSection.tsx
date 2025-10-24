@@ -7,6 +7,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
+import { useFavorites } from '../context/FavoriteContext';
 
 interface Property {
   id?: number | string;
@@ -40,8 +41,6 @@ interface PopularProperty {
 interface PopularSectionProps {
   apiUrl?: string;
   limit?: number;
-  favorites: (string | number)[];
-  toggleFavorite: (id: string | number) => void;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -49,10 +48,9 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function PopularSection({ 
   apiUrl = 'http://192.168.1.45:5000/api',
   limit = 10,
-  favorites,
-  toggleFavorite
 }: PopularSectionProps) {
   const navigation = useNavigation<NavigationProp>();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [popularProperties, setPopularProperties] = useState<PopularProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +135,33 @@ export default function PopularSection({
     return showAll ? popularProperties : popularProperties.slice(0, 2);
   };
 
+  const handleToggleFavorite = async (property: Property, propertyId: string | number) => {
+    try {
+      // Create a proper property object for toggleFavorite that matches the context's Property type
+      const propertyForToggle = {
+        id: property.id || property._id || propertyId,
+        _id: (property._id || property.id || propertyId)?.toString(),
+        name: property.name || property.title || 'Untitled Property',
+        price: property.price,
+        status: property.status,
+        rentPrice: property.rentPrice,
+        salePrice: property.salePrice,
+        photo: property.photo || property.image,
+        rating: property.rating || 4.9,
+        country: property.country || property.location || '',
+        facility: property.facility || [],
+        ownerId: (property.ownerId || '')?.toString(),
+        ownerName: property.ownerName || '',
+        address: property.address || property.location || property.country || '',
+      };
+
+      await toggleFavorite(propertyForToggle as any);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      // You can add a toast/alert here to show error to user
+    }
+  };
+
   const renderContent = () => {
     if (loading) return (
       <View style={styles.centerContainer}>
@@ -177,7 +202,7 @@ export default function PopularSection({
           const location = property.country || property.location || 'Location not available';
           const category = property.category || property.status || 'Property';
           const safeId = property.id || property._id || propertyId;
-          const isFavorited = favorites.includes(safeId);
+          const isFavorited = isFavorite(safeId);
 
           return (
             <Pressable 
@@ -187,12 +212,16 @@ export default function PopularSection({
               android_ripple={{ color: 'rgba(26, 115, 232, 0.1)' }}
             >
               <View style={styles.imageWrapper}>
-                <Image source={imageSource} style={styles.image} defaultSource={require('../../assets/images/placeholder.png')} />
+                <Image 
+                  source={imageSource} 
+                  style={styles.image} 
+                  defaultSource={require('../../assets/images/placeholder.png')} 
+                />
                 
                 <Pressable
                   onPress={(e) => {
                     e.stopPropagation();
-                    toggleFavorite(safeId);
+                    handleToggleFavorite(property, propertyId);
                   }}
                   style={styles.favoriteBtn}
                 >
@@ -268,32 +297,181 @@ export default function PopularSection({
 }
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 24 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  title: { fontWeight: '600', fontSize: 18, fontFamily: 'Montserrat_700Bold' },
-  seeAll: { color: '#1a73e8', fontSize: 13, fontFamily: 'Montserrat_600SemiBold' },
-  centerContainer: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { marginTop: 12, color: '#858585', fontSize: 14, fontFamily: 'Montserrat_400Regular' },
-  errorText: { marginTop: 12, color: '#ef4444', fontSize: 14, textAlign: 'center', fontFamily: 'Montserrat_400Regular' },
-  emptyText: { marginTop: 12, color: '#858585', fontSize: 14, fontFamily: 'Montserrat_400Regular' },
-  retryBtn: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: '#1a73e8', borderRadius: 8 },
-  retryText: { color: '#fff', fontSize: 14, fontFamily: 'Montserrat_600SemiBold' },
-  card: { flexDirection: 'row', backgroundColor: '#F5F4F8', borderRadius: 20, padding: 10, marginRight: 16, width: 320, height: 190, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-  imageWrapper: { width: 150, height: 170, position: 'relative' },
-  image: { width: '100%', height: '100%', borderRadius: 16 },
-  favoriteBtn: { position: 'absolute', top: 8, left: 8, borderRadius: 20, overflow: 'hidden', zIndex: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 3 },
-  gradientContainer: { width: 32, height: 32, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  whiteContainer: { width: 32, height: 32, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  maskContainer: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  gradientHeart: { width: 32, height: 32 },
-  categoryBadge: { position: 'absolute', bottom: 8, left: 8, backgroundColor: '#1a83ff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  categoryText: { color: '#fff', fontSize: 11, fontFamily: 'Montserrat_600SemiBold' },
-  info: { flex: 1, marginLeft: 15, justifyContent: 'space-between', paddingVertical: 4 },
-  titleText: { fontSize: 16, color: '#252B5C', fontFamily: 'Montserrat_700Bold' },
-  detailsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  rating: { marginLeft: 5, fontSize: 14, color: '#53587A', fontFamily: 'Montserrat_700Bold' },
-  location: { marginLeft: 5, fontSize: 14, color: '#53587A', fontFamily: 'Montserrat_400Regular' },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
-  priceAmount: { fontSize: 14, color: '#252B5C', fontFamily: 'Montserrat_700Bold' },
-  priceUnit: { marginLeft: 2, fontSize: 11, color: '#252B5C', fontFamily: 'Montserrat_400Regular' },
+  section: { 
+    marginBottom: 24 
+  },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 10 
+  },
+  title: { 
+    fontWeight: '600', 
+    fontSize: 18, 
+    fontFamily: 'Montserrat_700Bold' 
+  },
+  seeAll: { 
+    color: '#1a73e8', 
+    fontSize: 13, 
+    fontFamily: 'Montserrat_600SemiBold' 
+  },
+  centerContainer: { 
+    paddingVertical: 40, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  loadingText: { 
+    marginTop: 12, 
+    color: '#858585', 
+    fontSize: 14, 
+    fontFamily: 'Montserrat_400Regular' 
+  },
+  errorText: { 
+    marginTop: 12, 
+    color: '#ef4444', 
+    fontSize: 14, 
+    textAlign: 'center', 
+    fontFamily: 'Montserrat_400Regular' 
+  },
+  emptyText: { 
+    marginTop: 12, 
+    color: '#858585', 
+    fontSize: 14, 
+    fontFamily: 'Montserrat_400Regular' 
+  },
+  retryBtn: { 
+    marginTop: 16, 
+    paddingHorizontal: 24, 
+    paddingVertical: 10, 
+    backgroundColor: '#1a73e8', 
+    borderRadius: 8 
+  },
+  retryText: { 
+    color: '#fff', 
+    fontSize: 14, 
+    fontFamily: 'Montserrat_600SemiBold' 
+  },
+  card: { 
+    flexDirection: 'row', 
+    backgroundColor: '#F5F4F8', 
+    borderRadius: 20, 
+    padding: 10, 
+    marginRight: 16, 
+    width: 320, 
+    height: 190, 
+    elevation: 2, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 2 
+  },
+  imageWrapper: { 
+    width: 150, 
+    height: 170, 
+    position: 'relative' 
+  },
+  image: { 
+    width: '100%', 
+    height: '100%', 
+    borderRadius: 16 
+  },
+  favoriteBtn: { 
+    position: 'absolute', 
+    top: 8, 
+    left: 8, 
+    borderRadius: 20, 
+    overflow: 'hidden', 
+    zIndex: 3, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 2, 
+    elevation: 3 
+  },
+  gradientContainer: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 20, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  whiteContainer: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 20, 
+    backgroundColor: '#fff', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    overflow: 'hidden' 
+  },
+  maskContainer: { 
+    width: 32, 
+    height: 32, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: 'transparent' 
+  },
+  gradientHeart: { 
+    width: 32, 
+    height: 32 
+  },
+  categoryBadge: { 
+    position: 'absolute', 
+    bottom: 8, 
+    left: 8, 
+    backgroundColor: '#1a83ff', 
+    borderRadius: 8, 
+    paddingHorizontal: 10, 
+    paddingVertical: 4 
+  },
+  categoryText: { 
+    color: '#fff', 
+    fontSize: 11, 
+    fontFamily: 'Montserrat_600SemiBold' 
+  },
+  info: { 
+    flex: 1, 
+    marginLeft: 15, 
+    justifyContent: 'space-between', 
+    paddingVertical: 4 
+  },
+  titleText: { 
+    fontSize: 16, 
+    color: '#252B5C', 
+    fontFamily: 'Montserrat_700Bold' 
+  },
+  detailsRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: 2 
+  },
+  rating: { 
+    marginLeft: 5, 
+    fontSize: 14, 
+    color: '#53587A', 
+    fontFamily: 'Montserrat_700Bold' 
+  },
+  location: { 
+    marginLeft: 5, 
+    fontSize: 14, 
+    color: '#53587A', 
+    fontFamily: 'Montserrat_400Regular' 
+  },
+  priceRow: { 
+    flexDirection: 'row', 
+    alignItems: 'baseline', 
+    marginTop: 4 
+  },
+  priceAmount: { 
+    fontSize: 14, 
+    color: '#252B5C', 
+    fontFamily: 'Montserrat_700Bold' 
+  },
+  priceUnit: { 
+    marginLeft: 2, 
+    fontSize: 11, 
+    color: '#252B5C', 
+    fontFamily: 'Montserrat_400Regular' 
+  },
 });
