@@ -87,7 +87,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [favoriteProperties, setFavoriteProperties] = useState<PropertyType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const BASE_URL = "http://192.168.1.45:5000/api";
+  const BASE_URL = "http://192.168.0.152:5000/api";
 
   // Get current user
   const getCurrentUser = async (): Promise<UserData | null> => {

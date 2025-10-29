@@ -136,7 +136,7 @@ export default function ViewProfile() {
     message: ''
   });
 
-  const BASE_URL = "http://192.168.1.45:5000/api";
+  const BASE_URL = "http://192.168.0.152:5000/api";
 
   // Toast notification function
   const showToast = (type: 'success' | 'error' | 'info', title: string, message: string) => {

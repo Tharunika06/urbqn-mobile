@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import GradientButton from '../Button/GradientButton';
 
-const API_BASE_URL = 'http://192.168.1.45:5000';
+const API_BASE_URL = 'http://192.168.0.152:5000';
 
 interface UserProfile {
   _id?: string;

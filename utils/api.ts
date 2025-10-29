@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 
-const API_BASE_URL = 'http://192.168.1.45:5000/api';
+const API_BASE_URL = 'http://192.168.0.152:5000/api';
 
 export const apiGet = async (endpoint: string) => {
   const token = await AsyncStorage.getItem('authToken');

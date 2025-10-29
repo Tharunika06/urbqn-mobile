@@ -27,8 +27,10 @@ import PropertyOwnerCard from '../../../components/Estate/PropertyOwnerCard';
 import PropertyFacilities from '../../../components/Estate/PropertyFacilities';
 import LocationSection from '../../../components/Estate/LocationSection';
 import ReviewsSection from '../../../components/Estate/ReviewsSection';
+import * as Location from 'expo-location';
 
-const API_BASE_URL = 'http://192.168.1.45:5000';
+const API_BASE_URL = 'http://192.168.0.152:5000';
+const LOCATIONIQ_API_KEY = 'pk.9bdd1304713dd24e813e3b1207af245b';
 
 type EstateDetailsRouteProp = RouteProp<RootStackParamList, 'auth/Estate/EstateDetails'>;
 
@@ -147,6 +149,10 @@ export default function EstateDetails() {
     type: 'error',
   });
 
+  // ✅ NEW: Distance calculation states
+  const [propertyDistance, setPropertyDistance] = useState<string | null>(null);
+  const [calculatingDistance, setCalculatingDistance] = useState(false);
+
   // Pending review states
   const [pendingReviewInfo, setPendingReviewInfo] = useState<{
     hasPendingReview: boolean;
@@ -188,10 +194,91 @@ export default function EstateDetails() {
     return require('../../../assets/images/placeholder.png');
   };
 
+  // ✅ NEW: Calculate distance to property
+  const calculatePropertyDistance = async () => {
+    if (!property._id || !property.location) {
+      console.log('⏭️ Skipping distance calculation - no property data');
+      return;
+    }
+    
+    setCalculatingDistance(true);
+    
+    try {
+      console.log('📏 Calculating distance to property...');
+      
+      // Get user location
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('❌ Location permission denied for distance calculation');
+        setCalculatingDistance(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      console.log('📍 User location obtained:', location.coords.latitude, location.coords.longitude);
+
+      // Geocode property address
+      const cleanAddress = (property.address || property.location || '').trim();
+      const searchQuery = `${cleanAddress}, India`;
+      
+      console.log('🔍 Geocoding for distance:', searchQuery);
+      
+      const geocodeUrl = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(searchQuery)}&format=json&limit=1&countrycodes=in`;
+
+      const geocodeResponse = await fetch(geocodeUrl);
+      if (!geocodeResponse.ok) {
+        console.log('❌ Geocoding failed for distance calculation');
+        setCalculatingDistance(false);
+        return;
+      }
+
+      const geocodeData = await geocodeResponse.json();
+      if (!geocodeData || geocodeData.length === 0) {
+        console.log('❌ No geocoding results for distance');
+        setCalculatingDistance(false);
+        return;
+      }
+
+      const propertyCoords = {
+        latitude: parseFloat(geocodeData[0].lat),
+        longitude: parseFloat(geocodeData[0].lon),
+      };
+
+      console.log('📍 Property location:', propertyCoords.latitude, propertyCoords.longitude);
+
+      // Calculate straight-line distance using Haversine formula
+      const R = 6371; // Earth's radius in km
+      const dLat = (propertyCoords.latitude - location.coords.latitude) * Math.PI / 180;
+      const dLon = (propertyCoords.longitude - location.coords.longitude) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(location.coords.latitude * Math.PI / 180) * 
+        Math.cos(propertyCoords.latitude * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      // Format distance
+      const formattedDistance = distance < 1 
+        ? `${Math.round(distance * 1000)} m`
+        : `${distance.toFixed(1)} km`;
+
+      setPropertyDistance(formattedDistance);
+      console.log('✅ Distance calculated:', formattedDistance);
+
+    } catch (error) {
+      console.error('❌ Error calculating distance:', error);
+    } finally {
+      setCalculatingDistance(false);
+    }
+  };
+
   // Check for pending reviews
   const checkForPendingReview = async () => {
     try {
-      // Get customer identifier from AsyncStorage (phone or email)
       const customerPhone = await AsyncStorage.getItem('customerPhone');
       const customerEmail = await AsyncStorage.getItem('customerEmail');
       const customerName = await AsyncStorage.getItem('customerName');
@@ -204,8 +291,6 @@ export default function EstateDetails() {
       }
 
       console.log('🔍 Checking for pending review...');
-      console.log('   Property ID:', property._id);
-      console.log('   Customer:', customerIdentifier);
 
       const response = await fetch(
         `${API_BASE_URL}/api/reviews/pending/${property._id}/${encodeURIComponent(customerIdentifier)}`
@@ -225,7 +310,6 @@ export default function EstateDetails() {
             }
           });
           
-          // Only show popup if not dismissed before
           if (data.showPopup) {
             setShowReviewPrompt(true);
           }
@@ -241,7 +325,6 @@ export default function EstateDetails() {
     setShowReviewPrompt(false);
     
     if (action === 'review') {
-      // Navigate to review screen with customer info
       router.push({
         pathname: '/auth/Reviews/Review',
         params: {
@@ -255,7 +338,6 @@ export default function EstateDetails() {
         }
       });
     } else if (action === 'later') {
-      // Mark popup as dismissed but keep pending review active
       try {
         const customerPhone = await AsyncStorage.getItem('customerPhone');
         const customerEmail = await AsyncStorage.getItem('customerEmail');
@@ -281,7 +363,6 @@ export default function EstateDetails() {
         console.error('❌ Error dismissing popup:', error);
       }
     } else if (action === 'dismiss') {
-      // Delete the pending review completely
       deletePendingReview();
       setPendingReviewInfo(null);
     }
@@ -386,14 +467,15 @@ export default function EstateDetails() {
       }
     }
     fetchReviews();
-    checkForPendingReview(); // Check for pending reviews on mount
+    checkForPendingReview();
+    calculatePropertyDistance(); // ✅ Calculate distance on load
   }, [property]);
 
-  // Re-check pending review when returning from review screen
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       checkForPendingReview();
       fetchReviews();
+      calculatePropertyDistance(); // ✅ Recalculate on screen focus
     });
 
     return unsubscribe;
@@ -476,6 +558,7 @@ export default function EstateDetails() {
       showPopup('Error', 'Property data is not available', 'error');
       return;
     }
+    
     try {
       const propertyForMap = {
         _id: property._id,
@@ -483,10 +566,23 @@ export default function EstateDetails() {
         address: property.address || property.location || '',
         location: property.location || property.address || '',
       };
+
+      console.log('📍 Sending property to map (location only - will auto-geocode):', propertyForMap);
+
+      if (!propertyForMap.address && !propertyForMap.location) {
+        showPopup(
+          'Location Not Available',
+          'This property does not have location information. Please contact the property owner.',
+          'warning'
+        );
+        return;
+      }
+
       router.push({
         pathname: '/auth/Estate/EstateLocation',
         params: { property: JSON.stringify(propertyForMap) }
       });
+      
     } catch (error) {
       console.error('Error preparing property data for map:', error);
       showPopup('Error', 'Failed to prepare property data for map', 'error');
@@ -511,7 +607,6 @@ export default function EstateDetails() {
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
       
-      // Show user-friendly error message
       const errorMessage = error instanceof Error ? error.message : 'Unable to update favorites. Please check your internet connection and try again.';
       
       showPopup(
@@ -563,10 +658,15 @@ export default function EstateDetails() {
         />
         <PropertyOwnerCard ownerName={property.ownerName} />
         <PropertyFacilities facilities={property.facility} />
+        
+        {/* ✅ UPDATED: Pass distance props to LocationSection */}
         <LocationSection
           address={property.address}
           handleViewOnMap={handleViewOnMap}
+          distance={propertyDistance}
+          loadingDistance={calculatingDistance}
         />
+        
         <ReviewsSection
           reviews={reviews}
           loadingReviews={loadingReviews}

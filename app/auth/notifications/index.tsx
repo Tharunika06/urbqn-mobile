@@ -154,7 +154,7 @@ const icons = {
 
 const TABS: TabKey[] = ['All', 'Review', 'Sold', 'House', 'Villa', 'Rental'];
 
-const API_BASE_URL = 'http://192.168.1.45:5000/api/notifications';
+const API_BASE_URL = 'http://192.168.0.152:5000/api/notifications';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
@@ -291,9 +291,9 @@ export default function NotificationsScreen() {
       let errorMessage = 'Failed to load notifications';
       
       if (error.name === 'AbortError') {
-        errorMessage = 'Request timeout. Server not responding.\n\nCheck if server is running on:\nhttp://192.168.1.45:5000';
+        errorMessage = 'Request timeout. Server not responding.\n\nCheck if server is running on:\nhttp://192.168.0.152:5000';
       } else if (error.message === 'Network request failed') {
-        errorMessage = 'Cannot connect to server.\n\nTroubleshooting:\n1. Server running?\n2. Same WiFi network?\n3. Firewall blocking?\n\nServer: http://192.168.1.45:5000';
+        errorMessage = 'Cannot connect to server.\n\nTroubleshooting:\n1. Server running?\n2. Same WiFi network?\n3. Firewall blocking?\n\nServer: http://192.168.0.152:5000';
       } else if (error.message.includes('Server error')) {
         errorMessage = `Server error: ${error.message}\n\nCheck server console for errors.`;
       }

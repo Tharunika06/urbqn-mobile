@@ -149,7 +149,7 @@ export default function VerificationScreen({
     const endpoint = isFromSignup ? '/api/verify-code' : '/api/verify-reset-otp';
 
     try {
-      const response = await fetch(`http://192.168.1.45:5000${endpoint}`, {
+      const response = await fetch(`http://192.168.0.152:5000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp }),
