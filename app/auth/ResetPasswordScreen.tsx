@@ -155,7 +155,7 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
     }
 
     try {
-      const res = await fetch('http://192.168.0.152:5000/api/reset-password', {
+      const res = await fetch('http://localhost:5000/api/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: newPassword }),

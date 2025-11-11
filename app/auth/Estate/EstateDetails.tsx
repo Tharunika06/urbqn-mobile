@@ -29,7 +29,7 @@ import LocationSection from '../../../components/Estate/LocationSection';
 import ReviewsSection from '../../../components/Estate/ReviewsSection';
 import * as Location from 'expo-location';
 
-const API_BASE_URL = 'http://192.168.0.152:5000';
+const API_BASE_URL = 'http://localhost:5000';
 const LOCATIONIQ_API_KEY = 'pk.9bdd1304713dd24e813e3b1207af245b';
 
 type EstateDetailsRouteProp = RouteProp<RootStackParamList, 'auth/Estate/EstateDetails'>;

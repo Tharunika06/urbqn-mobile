@@ -49,7 +49,7 @@ export default function SearchScreen() {
       setError(null);
       
       console.log('🔄 Fetching properties');
-      const response = await fetch('http://192.168.0.152:5000/api/property');
+      const response = await fetch('http://localhost:5000/api/property');
       
       console.log('📡 Response status:', response.status);
       console.log('📡 Response ok:', response.ok);
@@ -137,7 +137,7 @@ export default function SearchScreen() {
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.152:5000${photo}` };
+      return { uri: `http://localhost:5000${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };

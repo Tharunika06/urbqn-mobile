@@ -46,7 +46,7 @@ interface PopularSectionProps {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function PopularSection({ 
-  apiUrl = 'http://192.168.0.152:5000/api',
+  apiUrl = 'http://localhost:5000/api',
   limit = 10,
 }: PopularSectionProps) {
   const navigation = useNavigation<NavigationProp>();
@@ -65,7 +65,7 @@ export default function PopularSection({
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.152:5000${photo}` };
+      return { uri: `http://localhost:5000${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };

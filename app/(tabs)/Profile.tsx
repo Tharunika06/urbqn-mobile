@@ -289,7 +289,7 @@ export default function Profile() {
 
       // ✅ Use correct endpoint and send as JSON
       const response = await axios.post(
-        "http://192.168.0.152:5000/api/profiles", // ✅ Correct endpoint
+        "http://localhost:5000/api/profiles", // ✅ Correct endpoint
         profileData,
         {
           headers: {

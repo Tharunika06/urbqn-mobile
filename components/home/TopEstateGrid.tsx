@@ -17,7 +17,7 @@ import { RootStackParamList } from '../../types/navigation';
 import GradientButton from '../../components/Button/GradientButton';
 import { useFavorites } from '../context/FavoriteContext';
 
-const API_BASE_URL = 'http://192.168.0.152:5000';
+const API_BASE_URL = 'http://localhost:5000';
 
 type Property = {
   id?: string | number;

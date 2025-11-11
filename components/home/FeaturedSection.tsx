@@ -31,7 +31,7 @@ interface FeaturedSectionProps {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FeaturedSection({ 
-  apiUrl = 'http://192.168.0.152:5000/api',
+  apiUrl = 'http://localhost:5000/api',
   limit = 10 
 }: FeaturedSectionProps) {
   const navigation = useNavigation<NavigationProp>();
@@ -49,7 +49,7 @@ export default function FeaturedSection({
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://192.168.0.152:5000${photo}` };
+      return { uri: `http://localhost:5000${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };

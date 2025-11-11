@@ -19,7 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StarRating from "../../../components/StarRating";
 
-const API_BASE_URL = "http://192.168.0.152:5000";
+const API_BASE_URL = "http://localhost:5000";
 const API_URL = `${API_BASE_URL}/api/reviews`;
 
 interface PopupConfig {

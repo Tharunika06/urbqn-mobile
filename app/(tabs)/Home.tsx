@@ -44,7 +44,7 @@ export default function Home() {
     const fetchFilteredProperties = async () => {
       try {
         setLoading(true);
-        const baseURL = 'http://192.168.0.152:5000/api/property';
+        const baseURL = 'http://localhost:5000/api/property';
         const url =
           activeFilter === 'All'
             ? baseURL
