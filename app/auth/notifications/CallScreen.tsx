@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Pressable, ImageSourcePropType, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router'; // Import useLocalSearchParams
-import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GradientButton from '../../../components/Button/GradientButton';
+
 const CallScreen: React.FC = () => {
   const router = useRouter();
-  // --- MODIFICATION START ---
+  
   // Get the parameters passed from the ChatScreen
   const { name, image } = useLocalSearchParams();
 
@@ -14,7 +15,6 @@ const CallScreen: React.FC = () => {
   const avatarSource = image
     ? (Number(image) as ImageSourcePropType)
     : require('../../../assets/images/user1.png'); // Fallback image
-  // --- MODIFICATION END ---
 
   const handleEndCall = () => {
     router.back();
@@ -57,18 +57,20 @@ const CallScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* End Call Button with Gradient */}
-        <Pressable style={styles.endCallWrapper} onPress={handleEndCall}>
-          <LinearGradient
+        {/* End Call Button with GradientButton */}
+        <View style={styles.endCallWrapper}>
+          <GradientButton
+            onPress={handleEndCall}
+            label={
+              <View style={styles.endCallContent}>
+                <Text style={styles.endCallText}>End Call</Text>
+                <Ionicons name="call-outline" size={20} color="#a5d8ff" style={{ marginLeft: 8 }} />
+              </View>
+            }
             colors={['#1e90ff', '#0090ff']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.endCallButton}
-          >
-            <Text style={styles.endCallText}>End Call</Text>
-            <Ionicons name="call-outline" size={20} color="#a5d8ff" style={{ marginLeft: 8 }} />
-          </LinearGradient>
-        </Pressable>
+            buttonStyle={styles.endCallButton}
+          />
+        </View>
       </View>
     </View>
     </SafeAreaView>
@@ -105,7 +107,7 @@ const styles = StyleSheet.create({
   image: {
     width: 380,
     height: 460,
-marginTop: 40,
+    marginTop: 40,
     marginBottom: 5,
   },
   title: {
@@ -113,7 +115,7 @@ marginTop: 40,
     textAlign: 'center',
     color: '#1e1e1e',
     lineHeight: 42,
-    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+    fontFamily: 'BebasNeue_400Regular',
   },
   progressBar: {
     flexDirection: 'row',
@@ -141,19 +143,8 @@ marginTop: 40,
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+    fontFamily: 'SFPro',
   },
-  // container: {
-  //   flex: 1,
-  //   backgroundColor: '#fff',
-  //   alignItems: 'center',
-  //   paddingTop: 60,
-  // },
-  // backButton: {
-  //   position: 'absolute',
-  //   top: 50,
-  //   left: 20,
-  // },
   name: {
     fontSize: 22,
     color: '#1a2238',
@@ -187,13 +178,6 @@ marginTop: 40,
     shadowRadius: 30,
     elevation: 20,
   },
-  // image: {
-  //   width: 100,
-  //   height: 100,
-  //   borderRadius: 50,
-  //   borderWidth: 2,
-  //   borderColor: '#fff',
-  // },
   callControlsWrapper: {
     position: 'absolute',
     bottom: 0,
@@ -224,13 +208,17 @@ marginTop: 40,
   },
   endCallWrapper: {
     width: '70%',
+    alignItems: 'center',
   },
   endCallButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: 10,
+  },
+  endCallContent: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
   },
   endCallText: {
     color: '#fff',

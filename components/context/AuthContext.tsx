@@ -27,12 +27,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (storedToken) {
         setTokenState(storedToken);
-        console.log('✅ Auth token loaded');
       } else {
-        console.log('ℹ️ No auth token found');
       }
     } catch (error) {
-      console.error('❌ Error loading token:', error);
+      console.error(' Error loading token:', error);
     } finally {
       setLoading(false);
     }
@@ -43,14 +41,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (newToken) {
         await AsyncStorage.setItem('authToken', newToken);
         setTokenState(newToken);
-        console.log('✅ Auth token saved');
       } else {
         await AsyncStorage.removeItem('authToken');
         setTokenState(null);
-        console.log('✅ Auth token removed');
       }
     } catch (error) {
-      console.error('❌ Error saving token:', error);
+      console.error(' Error saving token:', error);
       throw error;
     }
   };
@@ -59,9 +55,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await AsyncStorage.removeItem('authToken');
       setTokenState(null);
-      console.log('✅ Auth token cleared');
+      console.log(' Auth token cleared');
     } catch (error) {
-      console.error('❌ Error clearing token:', error);
+      console.error(' Error clearing token:', error);
     }
   };
 

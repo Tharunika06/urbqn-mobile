@@ -17,8 +17,26 @@ import { useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import GradientButton from '../Button/GradientButton';
+import { usePopup } from '../context/PopupContext';
 
-const API_BASE_URL = 'http://localhost:5000';
+// Services
+import {
+  checkPropertyAvailability,
+  fetchUserProfile,
+  getCurrentUser,
+  createPaymentIntent,
+  saveTransactionDetails,
+  saveCustomerInfoForReview,
+} from '../../services/estateService';
+
+// Utils
+import {
+  parsePrice,
+  formatPrice,
+  validatePhoneNumber,
+  getFullNameFromProfile,
+  parseNameParts,
+} from '../../utils/estateUtils';
 
 interface UserProfile {
   _id?: string;
@@ -47,18 +65,6 @@ interface TransactionHandlerProps {
   isValid: boolean;
 }
 
-interface PopupConfig {
-  visible: boolean;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-  buttons: {
-    text: string;
-    onPress: () => void;
-    style?: 'default' | 'cancel' | 'destructive';
-  }[];
-}
-
 export default function TransactionHandler({ property, displayMode, isValid }: TransactionHandlerProps) {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -71,31 +77,22 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   const [hasCompleteProfile, setHasCompleteProfile] = useState(false);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   
-  // New states for availability check
+  // Availability check states
   const [isPropertySold, setIsPropertySold] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(true);
   
-  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
-    visible: false,
-    type: 'info',
-    title: '',
-    message: '',
-    buttons: []
-  });
-
+  const { showCustom, showError, showWarning, showInfo } = usePopup();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   useEffect(() => {
     loadUserProfile();
   }, []);
 
-  // Check property availability on mount and when displayMode changes
   useEffect(() => {
-    checkPropertyAvailability();
+    checkAvailability();
   }, [property._id, displayMode]);
 
-  const checkPropertyAvailability = async () => {
-    // Only check for sale properties or when displayMode is sale
+  const checkAvailability = async () => {
     const propertyStatus = property.status?.toLowerCase();
     const isSaleProperty = propertyStatus === 'sale' || propertyStatus === 'both';
     
@@ -107,120 +104,23 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
     try {
       setCheckingAvailability(true);
-      console.log(`🔍 Checking availability for property: ${property._id}`);
+      console.log(`Checking availability for property: ${property._id}`);
       
-      const response = await fetch(
-        `${API_BASE_URL}/api/properties/${property._id}/availability`
-      );
+      const data = await checkPropertyAvailability(property._id);
+      setIsPropertySold(!data.isAvailable);
       
-      if (response.ok) {
-        const data = await response.json();
-        setIsPropertySold(!data.isAvailable);
-        
-        if (!data.isAvailable) {
-          console.log('⚠️ Property is already sold');
-          console.log(`   Sold on: ${data.soldDate}`);
-          console.log(`   Transaction: ${data.transactionId}`);
-        } else {
-          console.log('✅ Property is available for purchase');
-        }
+      if (!data.isAvailable) {
+        console.log('Property is already sold');
+        console.log(`Sold on: ${data.soldDate}`);
+        console.log(`Transaction: ${data.transactionId}`);
       } else {
-        console.warn('⚠️ Could not verify property availability');
-        // Assume available if check fails
-        setIsPropertySold(false);
+        console.log('Property is available for purchase');
       }
     } catch (error) {
-      console.error('❌ Error checking property availability:', error);
-      // Assume available if check fails
+      console.error('Error checking property availability:', error);
       setIsPropertySold(false);
     } finally {
       setCheckingAvailability(false);
-    }
-  };
-
-  const showPopup = (
-    title: string, 
-    message: string, 
-    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
-    type: PopupConfig['type'] = 'info'
-  ) => {
-    setPopupConfig({
-      visible: true,
-      type,
-      title,
-      message,
-      buttons
-    });
-  };
-
-  const hidePopup = () => {
-    setPopupConfig(prev => ({ ...prev, visible: false }));
-  };
-
-  const getFullNameFromProfile = (profile: UserProfile): string => {
-    if (profile.fullName?.trim()) {
-      return profile.fullName.trim();
-    }
-    
-    const firstName = profile.firstName?.trim() || '';
-    const lastName = profile.lastName?.trim() || '';
-    
-    if (firstName && lastName) {
-      return `${firstName} ${lastName}`;
-    }
-    
-    return firstName;
-  };
-
-  const getCurrentUser = async () => {
-    try {
-      const userData = await AsyncStorage.getItem('user');
-      return userData ? JSON.parse(userData) : null;
-    } catch (error) {
-      console.error("Error getting current user:", error);
-      return null;
-    }
-  };
-
-  const fetchUserProfile = async (email: string) => {
-    try {
-      console.log(`Fetching profile for user: ${email}`);
-      
-      const checkResponse = await fetch(
-        `${API_BASE_URL}/api/profiles/check-email/${encodeURIComponent(email)}`
-      );
-      
-      if (!checkResponse.ok) {
-        console.log('Profile check failed:', checkResponse.status);
-        return null;
-      }
-
-      const checkData = await checkResponse.json();
-      
-      if (!checkData.exists) {
-        console.log('No profile found for email:', email);
-        return null;
-      }
-
-      const profilesResponse = await fetch(
-        `${API_BASE_URL}/api/profiles?includePhotos=true`
-      );
-      
-      if (!profilesResponse.ok) {
-        console.log('Profiles fetch failed:', profilesResponse.status);
-        return null;
-      }
-
-      const profilesData = await profilesResponse.json();
-      
-      const userProfile = profilesData.profiles?.find(
-        (p: any) => p.email?.toLowerCase() === email.toLowerCase()
-      );
-      
-      return userProfile || null;
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      return null;
     }
   };
 
@@ -297,7 +197,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         const phone = profile.phone || profile.phoneNumber || '';
         
         console.log('Extracted from API profile - Name:', name, 'Phone:', phone);
-        console.log('Profile fields - firstName:', profile.firstName, 'lastName:', profile.lastName, 'fullName:', profile.fullName);
         
         if (name && phone && phone.length >= 10) {
           setHasCompleteProfile(true);
@@ -320,38 +219,21 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     }
   };
 
-  const parsePrice = (price: string | number | null | undefined): number | null => {
-    if (price === null || price === undefined || price === '') return null;
-    if (typeof price === 'number') return price;
-    const cleanPrice = String(price).replace(/[^0-9.-]+/g, '');
-    const numericPrice = parseFloat(cleanPrice);
-    return !isNaN(numericPrice) ? numericPrice : null;
-  };
-
-  const validatePhoneNumber = (phone: string): boolean => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    return cleanPhone.length === 10 && /^[0-9]{10}$/.test(cleanPhone);
-  };
-
   const handleBuyRentClick = () => {
     if (!displayMode) return;
     
-    // Check if property is sold (only for buy transactions)
     if (displayMode === 'sale' && isPropertySold) {
-      showPopup(
+      showCustom(
         'Property Not Available',
         'This property has already been sold and is no longer available for purchase. Please explore other available properties.',
         [
           { 
             text: 'Browse Properties', 
-            onPress: () => {
-              hidePopup();
-              router.back();
-            }
+            onPress: () => router.back()
           },
           { 
             text: 'OK', 
-            onPress: hidePopup,
+            onPress: () => {},
             style: 'cancel'
           }
         ],
@@ -374,23 +256,17 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     const trimmedPhone = userPhone.trim();
 
     if (!trimmedName) {
-      showPopup('Validation Error', 'Please enter your full name.', [
-        { text: 'OK', onPress: hidePopup }
-      ], 'error');
+      showError('Validation Error', 'Please enter your full name.');
       return;
     }
 
     if (trimmedName.length < 2) {
-      showPopup('Validation Error', 'Name must be at least 2 characters long.', [
-        { text: 'OK', onPress: hidePopup }
-      ], 'error');
+      showError('Validation Error', 'Name must be at least 2 characters long.');
       return;
     }
 
     if (!validatePhoneNumber(trimmedPhone)) {
-      showPopup('Validation Error', 'Please enter a valid 10-digit phone number.', [
-        { text: 'OK', onPress: hidePopup }
-      ], 'error');
+      showError('Validation Error', 'Please enter a valid 10-digit phone number.');
       return;
     }
 
@@ -401,16 +277,11 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
   const handlePayment = async () => {
     if (!displayMode || isProcessing) return;
     
-    // Final availability check before payment
     if (displayMode === 'sale' && isPropertySold) {
-      showPopup(
+      showError(
         'Property No Longer Available',
         'This property was just sold. Please select a different property.',
-        [{ text: 'OK', onPress: () => {
-          hidePopup();
-          router.back();
-        }}],
-        'error'
+        () => router.back()
       );
       return;
     }
@@ -419,28 +290,13 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
     const price = displayMode === 'rent' ? parsePrice(property.rentPrice) : parsePrice(property.salePrice);
     if (!price || price <= 0) {
-      showPopup('Error', 'Price is not available for this option.', [
-        { text: 'OK', onPress: hidePopup }
-      ], 'error');
+      showError('Error', 'Price is not available for this option.');
       setIsProcessing(false);
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/payment/create-payment-intent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: price }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const { clientSecret, error: backendError } = await response.json();
-      if (backendError || !clientSecret) {
-        throw new Error(backendError || 'Failed to get payment client secret from server.');
-      }
+      const { clientSecret } = await createPaymentIntent(price);
 
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'RealEstate App Inc.',
@@ -463,27 +319,43 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       }
 
       // Save transaction details
-      await saveTransactionDetails(clientSecret, price, userName.trim(), userPhone.trim());
+      const transactionId = clientSecret.split('_secret')[0];
+      const purchaseType = displayMode === 'rent' ? 'rent' : 'buy';
       
-      // Save customer info to AsyncStorage for review tracking
-      await saveCustomerInfoForReview();
+      const transactionData = {
+        id: transactionId,
+        customerName: userName.trim(),
+        customerPhone: userPhone.trim(),
+        customerEmail: userEmail,
+        paymentMethod: 'card',
+        amount: price,
+        currency: 'INR',
+        property: { id: property._id, name: property.name },
+        ownerName: property.ownerName,
+        purchaseType: purchaseType,
+        timestamp: new Date().toISOString(),
+      };
+      
+      await saveTransactionDetails(transactionData);
+      
+      // Save customer info for review tracking
+      await saveCustomerInfoForReview(userName.trim(), userPhone.trim(), userEmail);
       
       // Save user profile
-      await saveUserProfile();
+      await saveUserProfileData();
 
-      // If this was a sale transaction, mark property as sold locally
+      // Mark property as sold locally
       if (displayMode === 'sale') {
         setIsPropertySold(true);
       }
 
-      showPopup(
+      showCustom(
         'Payment Successful!',
         `Your ${displayMode === 'rent' ? 'rental' : 'purchase'} of "${property.name}" was completed successfully. Please take a moment to leave a review.`,
         [
           {
             text: 'Review Now',
             onPress: () => {
-              hidePopup();
               if (property._id) {
                 router.push({
                   pathname: '/auth/Reviews/Review',
@@ -505,10 +377,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
           },
           {
             text: 'Later',
-            onPress: () => {
-              hidePopup();
-              router.back();
-            },
+            onPress: () => router.back(),
             style: 'cancel'
           }
         ],
@@ -517,52 +386,24 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 
     } catch (error: any) {
       console.error('Payment error:', error);
-      showPopup('Payment Error', error.message || 'An unexpected error occurred during payment.', [
-        { text: 'OK', onPress: hidePopup }
-      ], 'error');
+      showError('Payment Error', error.message || 'An unexpected error occurred during payment.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const saveCustomerInfoForReview = async () => {
-    try {
-      const trimmedName = userName.trim();
-      const trimmedPhone = userPhone.trim();
-      
-      if (trimmedPhone) {
-        await AsyncStorage.setItem('customerPhone', trimmedPhone);
-        console.log('✅ Customer phone saved for review tracking:', trimmedPhone);
-      }
-      
-      if (userEmail) {
-        await AsyncStorage.setItem('customerEmail', userEmail);
-        console.log('✅ Customer email saved for review tracking:', userEmail);
-      }
-      
-      if (trimmedName) {
-        await AsyncStorage.setItem('customerName', trimmedName);
-        console.log('✅ Customer name saved for review tracking:', trimmedName);
-      }
-    } catch (error) {
-      console.error('❌ Error saving customer info for review:', error);
-    }
-  };
-
-  const saveUserProfile = async () => {
+  const saveUserProfileData = async () => {
     try {
       const trimmedName = userName.trim();
       const trimmedPhone = userPhone.trim();
       
       if (trimmedName && trimmedPhone) {
-        const nameParts = trimmedName.split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        const { firstName, lastName } = parseNameParts(trimmedName);
         
         const profileData: UserProfile = {
           ...userProfile,
-          firstName: firstName,
-          lastName: lastName,
+          firstName,
+          lastName,
           fullName: trimmedName,
           phone: trimmedPhone,
           email: userEmail,
@@ -578,62 +419,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     }
   };
 
-  const saveTransactionDetails = async (clientSecret: string, amount: number, name: string, phone: string) => {
-    try {
-      if (!property._id) {
-        console.error("Critical Error: Property _id is missing. Cannot save transaction.");
-        showPopup("Error", "Could not save transaction due to missing property information.", [
-          { text: 'OK', onPress: hidePopup }
-        ], 'error');
-        return;
-      }
-      
-      const purchaseType = displayMode === 'rent' ? 'rent' : 'buy';
-      
-      const transactionDetails = {
-        id: clientSecret.split('_secret')[0], 
-        customerName: name,
-        customerPhone: phone,
-        customerEmail: userEmail,
-        paymentMethod: 'card',
-        amount: amount,
-        currency: 'INR',
-        property: { id: property._id, name: property.name },
-        ownerName: property.ownerName,
-        purchaseType: purchaseType,
-        timestamp: new Date().toISOString(),
-      };
-      
-      console.log('💾 Saving transaction with purchaseType:', purchaseType);
-      console.log('📧 Customer Email:', userEmail);
-      console.log('📱 Customer Phone:', phone);
-      
-      const response = await fetch(`${API_BASE_URL}/api/payment/save-transaction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionDetails }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Server returned an error: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log("✅ Transaction details successfully saved to server.");
-      console.log("✅ Pending review created:", result.transaction?.transactionId || 'N/A');
-      
-    } catch (error: any) {
-      console.error("❌ Failed to save transaction on server:", error);
-      showPopup(
-        "Save Error", 
-        `Your payment was successful, but we couldn't save the transaction record. Please contact support with your payment confirmation.\n\nError: ${error.message}`,
-        [{ text: 'OK', onPress: hidePopup }],
-        'warning'
-      );
-    }
-  };
-
   const getBuyButtonText = () => {
     if (checkingAvailability) return 'Checking...';
     if (displayMode === 'sale' && isPropertySold) return 'Sold Out';
@@ -641,20 +426,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     if (!displayMode) return 'Select Option';
     
     return displayMode === 'rent' ? 'Rent Now' : 'Buy Now';
-  };
-
-  const getPopupIcon = (type: PopupConfig['type']) => {
-    switch (type) {
-      case 'success':
-        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
-      case 'error':
-        return { name: 'close-circle' as const, color: '#f44336' };
-      case 'warning':
-        return { name: 'warning' as const, color: '#ff9800' };
-      case 'info':
-      default:
-        return { name: 'information-circle' as const, color: '#1a73e8' };
-    }
   };
 
   const CancelPaymentPopup = () => (
@@ -679,49 +450,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     </Modal>
   );
 
-  const CustomPopup = () => {
-    if (!popupConfig.visible) return null;
-    
-    const icon = getPopupIcon(popupConfig.type);
-    
-    return (
-      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
-        <View style={styles.popupOverlay}>
-          <View style={styles.popupContainer}>
-            <View style={styles.popupIconContainer}>
-              <Ionicons name={icon.name} size={64} color={icon.color} />
-            </View>
-            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
-            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
-            
-            <View style={styles.popupButtonsContainer}>
-              {popupConfig.buttons.map((button, index) => (
-                <Pressable 
-                  key={index}
-                  style={[
-                    styles.popupButton,
-                    button.style === 'cancel' && styles.popupCancelButton,
-                    button.style === 'destructive' && styles.popupDestructiveButton,
-                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
-                  ]} 
-                  onPress={button.onPress}
-                >
-                  <Text style={[
-                    styles.popupButtonText,
-                    button.style === 'cancel' && styles.popupCancelButtonText,
-                    button.style === 'destructive' && styles.popupDestructiveButtonText
-                  ]}>
-                    {button.text}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   return (
     <>
       <View style={styles.buyWrapper}>
@@ -736,7 +464,7 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
             label={getBuyButtonText()}
             colors={
               (displayMode === 'sale' && isPropertySold) 
-                ? ['#9ca3af', '#6b7280']  // Gray colors for sold
+                ? ['#9ca3af', '#6b7280']
                 : ['#000000', '#474747']
             }
             buttonStyle={[
@@ -750,7 +478,6 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       </View>
 
       <CancelPaymentPopup />
-      <CustomPopup />
 
       <Modal 
         visible={showUserInfoModal} 
@@ -872,260 +599,42 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
 }
 
 const styles = StyleSheet.create({
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  popupContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
-    minWidth: 280,
-    maxWidth: 340,
-  },
-  popupIconContainer: {
-    marginBottom: 16,
-  },
-  popupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a2238',
-    fontFamily: 'Montserrat_700Bold',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  popupMessage: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'Montserrat_400Regular',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  popupButtonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-  },
-  popupButton: {
-    backgroundColor: '#1a73e8',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    minWidth: 100,
-  },
-  popupButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Montserrat_600SemiBold',
-    textAlign: 'center',
-  },
-  popupCancelButton: {
-    backgroundColor: '#f3f3f3',
-  },
-  popupCancelButtonText: {
-    color: '#666',
-  },
-  popupDestructiveButton: {
-    backgroundColor: '#f44336',
-  },
-  popupDestructiveButtonText: {
-    color: '#fff',
-  },
-  buyWrapper: { 
-    marginHorizontal: 10, 
-    marginTop: 5, 
-    marginBottom: -30 
-  },
-  buyCTA: { 
-    paddingVertical: 14, 
-    borderRadius: 14, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    flexDirection: 'row',
-  },
-  soldButton: {
-    opacity: 0.6,
-  },
-  buyText: { 
-    color: '#fff', 
-    fontSize: 16, 
-    fontWeight: '600', 
-    fontFamily: 'Montserrat_600SemiBold' 
-  },
-  checkingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  checkingText: {
-    marginLeft: 8,
-    color: '#666',
-    fontSize: 14,
-    fontFamily: 'Montserrat_500Medium',
-  },
-  modalOverlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-    justifyContent: 'flex-end' 
-  },
-  modalContainer: { 
-    flex: 1, 
-    justifyContent: 'flex-end' 
-  },
-  modalContent: { 
-    backgroundColor: '#fff', 
-    borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24,
-    maxHeight: '85%' 
-  },
-  modalContentContainer: {
-    paddingHorizontal: 20, 
-    paddingTop: 20, 
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-  },
-  modalHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 8 
-  },
-  modalTitle: { 
-    fontSize: 20, 
-    fontWeight: '700', 
-    color: '#1a2238', 
-    fontFamily: 'Montserrat_700Bold',
-    flex: 1,
-  },
-  closeButton: { 
-    padding: 4 
-  },
-  modalSubtitle: { 
-    fontSize: 14, 
-    color: '#666', 
-    marginBottom: 24, 
-    fontFamily: 'Montserrat_400Regular',
-    lineHeight: 20,
-  },
-  emailContainer: { 
-    marginBottom: 20 
-  },
-  emailDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eaf4ff',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1a73e8',
-  },
-  emailText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#1a73e8',
-    fontFamily: 'Montserrat_500Medium',
-    flex: 1,
-  },
-  inputContainer: { 
-    marginBottom: 20 
-  },
-  inputLabel: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    color: '#1a2238', 
-    marginBottom: 8, 
-    fontFamily: 'Montserrat_600SemiBold' 
-  },
-  textInput: { 
-    borderWidth: 1, 
-    borderColor: '#e0e0e0', 
-    borderRadius: 12, 
-    paddingHorizontal: 16, 
-    paddingVertical: 14, 
-    fontSize: 16, 
-    color: '#1a2238', 
-    fontFamily: 'Montserrat_400Regular', 
-    backgroundColor: '#f9f9f9' 
-  },
-  validationHint: {
-    fontSize: 12,
-    color: '#ff9800',
-    marginTop: 4,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  modalActions: { 
-    flexDirection: 'row', 
-    gap: 12, 
-    marginTop: 24 
-  },
-  cancelButton: { 
-    flex: 1, 
-    backgroundColor: '#f3f3f3', 
-    paddingVertical: 14, 
-    borderRadius: 12, 
-    alignItems: 'center' 
-  },
-  cancelButtonText: { 
-    color: '#666', 
-    fontSize: 16, 
-    fontWeight: '600', 
-    fontFamily: 'Montserrat_600SemiBold' 
-  },
-  proceedButton: { 
-    flex: 2, 
-    backgroundColor: '#1a73e8', 
-    paddingVertical: 14, 
-    borderRadius: 12, 
-    alignItems: 'center' 
-  },
-  proceedButtonDisabled: {
-    backgroundColor: '#93c5fd',
-    opacity: 0.6,
-  },
-  proceedButtonText: { 
-    color: '#fff', 
-    fontSize: 16, 
-    fontWeight: '600', 
-    fontFamily: 'Montserrat_600SemiBold' 
-  },
-  profileNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eaf4ff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  profileNoticeText: {
-    marginLeft: 8,
-    fontSize: 12,
-    color: '#1a73e8',
-    flex: 1,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  loadingContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingVertical: 20 
-  },
-  loadingText: { 
-    marginLeft: 8, 
-    color: '#666', 
-    fontFamily: 'Montserrat_400Regular' 
-  },
+  popupOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center' },
+  popupContainer: { backgroundColor: '#fff', borderRadius: 20, padding: 24, marginHorizontal: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10, minWidth: 280, maxWidth: 340 },
+  popupIconContainer: { marginBottom: 16 },
+  popupTitle: { fontSize: 20, fontWeight: '700', color: '#1a2238', fontFamily: 'Montserrat_700Bold', marginBottom: 12, textAlign: 'center' },
+  popupMessage: { fontSize: 14, color: '#666', fontFamily: 'Montserrat_400Regular', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  popupButton: { backgroundColor: '#1a73e8', paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12, minWidth: 100 },
+  popupButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold', textAlign: 'center' },
+  buyWrapper: { marginHorizontal: 10, marginTop: 5, marginBottom: -30 },
+  buyCTA: { paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  soldButton: { opacity: 0.6 },
+  buyText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
+  checkingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', paddingVertical: 14, borderRadius: 14 },
+  checkingText: { marginLeft: 8, color: '#666', fontSize: 14, fontFamily: 'Montserrat_500Medium' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
+  modalContainer: { flex: 1, justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%' },
+  modalContentContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#1a2238', fontFamily: 'Montserrat_700Bold', flex: 1 },
+  closeButton: { padding: 4 },
+  modalSubtitle: { fontSize: 14, color: '#666', marginBottom: 24, fontFamily: 'Montserrat_400Regular', lineHeight: 20 },
+  emailContainer: { marginBottom: 20 },
+  emailDisplay: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eaf4ff', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#1a73e8' },
+  emailText: { marginLeft: 8, fontSize: 16, color: '#1a73e8', fontFamily: 'Montserrat_500Medium', flex: 1 },
+  inputContainer: { marginBottom: 20 },
+  inputLabel: { fontSize: 14, fontWeight: '600', color: '#1a2238', marginBottom: 8, fontFamily: 'Montserrat_600SemiBold' },
+  textInput: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#1a2238', fontFamily: 'Montserrat_400Regular', backgroundColor: '#f9f9f9' },
+  validationHint: { fontSize: 12, color: '#ff9800', marginTop: 4, fontFamily: 'Montserrat_400Regular' },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  cancelButton: { flex: 1, backgroundColor: '#f3f3f3', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  cancelButtonText: { color: '#666', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
+  proceedButton: { flex: 2, backgroundColor: '#1a73e8', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  proceedButtonDisabled: { backgroundColor: '#93c5fd', opacity: 0.6 },
+  proceedButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: 'Montserrat_600SemiBold' },
+  profileNotice: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eaf4ff', padding: 12, borderRadius: 8, marginBottom: 16 },
+  profileNoticeText: { marginLeft: 8, fontSize: 12, color: '#1a73e8', flex: 1, fontFamily: 'Montserrat_400Regular' },
+  loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
+  loadingText: { marginLeft: 8, color: '#666', fontFamily: 'Montserrat_400Regular' },
 });

@@ -5,13 +5,13 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
-  StatusBar
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
+import { generateLeafletHTML } from '../../../utils/mapConstants';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +21,7 @@ export default function SelectLocationScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
@@ -42,31 +43,7 @@ export default function SelectLocationScreen() {
       {/* OpenStreetMap Box */}
       <View style={styles.mapWrapper}>
         <WebView
-          source={{
-            html: `
-              <!DOCTYPE html>
-              <html>
-                <head>
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-                  <style>
-                    html, body, #map { height: 100%; margin: 0; }
-                  </style>
-                </head>
-                <body>
-                  <div id="map"></div>
-                  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-                  <script>
-                    var map = L.map('map').setView([43.7696, 11.2558], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                      maxZoom: 19,
-                    }).addTo(map);
-                    var marker = L.marker([43.7696, 11.2558]).addTo(map);
-                  </script>
-                </body>
-              </html>
-            `,
-          }}
+          source={{ html: generateLeafletHTML() }}
           originWhitelist={['*']}
           style={styles.map}
         />
@@ -82,7 +59,12 @@ export default function SelectLocationScreen() {
       <Pressable style={styles.locationDetail}>
         <Ionicons name="location-sharp" size={18} color="#ff4081" />
         <Text style={styles.detailText}>Location detail</Text>
-        <Ionicons name="chevron-forward" size={18} color="#aaa" style={{ marginLeft: 'auto' }} />
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color="#aaa"
+          style={{ marginLeft: 'auto' }}
+        />
       </Pressable>
 
       {/* Next Button */}
@@ -95,6 +77,7 @@ export default function SelectLocationScreen() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -116,34 +99,31 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#FFFFFFCC',
     borderRadius: 8,
-    fontFamily: 'Montserrat_400Regular', 
+    fontFamily: 'Montserrat_400Regular',
   },
   title: {
     fontSize: 22,
     fontWeight: '600',
     marginTop: 25,
-    fontFamily: 'Montserrat_700Bold', 
+    fontFamily: 'Montserrat_700Bold',
     marginBottom: 18,
-    color:'#1A1A1A'
+    color: '#1A1A1A',
   },
   highlight: {
     color: '#0075FF',
-     fontWeight: '600',
-    fontFamily: 'Montserrat_700Bold', 
+    fontWeight: '600',
+    fontFamily: 'Montserrat_700Bold',
   },
   subtitle: {
     fontSize: 13,
     color: '#696969',
-    // marginTop: -50,
-    fontFamily: 'Montserrat_400Regular', 
+    fontFamily: 'Montserrat_400Regular',
     marginBottom: 30,
   },
   mapWrapper: {
     height: 230,
     borderRadius: 14,
     overflow: 'hidden',
-    //  marginTop: -70,
-    // marginBottom: 20,
     position: 'relative',
   },
   map: {
@@ -166,9 +146,8 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     color: '#fff',
-    // fontWeight: '700',
     fontSize: 14,
-     fontWeight: '600',
+    fontWeight: '600',
     fontFamily: 'Montserrat_700Bold',
   },
   locationDetail: {
@@ -185,7 +164,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     color: '#A1A5C1',
-    //  fontWeight: '600',
     fontFamily: 'Montserrat_400Regular',
   },
   nextButton: {
@@ -193,7 +171,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     borderRadius: 10,
-    marginTop:80,
+    marginTop: 80,
     marginBottom: 20,
   },
   nextButtonText: {

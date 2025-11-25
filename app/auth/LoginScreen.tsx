@@ -1,4 +1,4 @@
-// userLoginScreen.tsx - WITH REMEMBER ME FUNCTIONALITY
+// urban/app/auth/LoginScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -24,18 +24,8 @@ import ForgotPasswordScreen from './ForgotPasswordScreen';
 import VerificationScreen from './VerificationScreen';
 import ResetPasswordScreen from './ResetPasswordScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-interface PopupConfig {
-  visible: boolean;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-  buttons: {
-    text: string;
-    onPress: () => void;
-    style?: 'default' | 'cancel' | 'destructive';
-  }[];
-}
+import { authAPI } from '../../services/api.service';
+import { usePopup } from '../../components/context/PopupContext';
 
 export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
@@ -49,13 +39,7 @@ export default function LoginScreen() {
   const [isFromSignup, setIsFromSignup] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
-    visible: false,
-    type: 'info',
-    title: '',
-    message: '',
-    buttons: []
-  });
+  const { showCustom, showError } = usePopup();
 
   const [fontsLoaded] = useFonts({
     Montserrat_400Regular,
@@ -64,7 +48,6 @@ export default function LoginScreen() {
     Prompt_700Bold,
   });
 
-  // Load saved credentials on component mount
   useEffect(() => {
     loadSavedCredentials();
   }, []);
@@ -79,7 +62,6 @@ export default function LoginScreen() {
         setEmail(savedEmail);
         setPassword(savedPassword);
         setRememberMe(true);
-        console.log('✅ Loaded saved credentials');
       }
     } catch (error) {
       console.error('Error loading saved credentials:', error);
@@ -88,97 +70,18 @@ export default function LoginScreen() {
     }
   };
 
-  const showPopup = (
-    title: string,
-    message: string,
-    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
-    type: PopupConfig['type'] = 'info'
-  ) => {
-    setPopupConfig({
-      visible: true,
-      type,
-      title,
-      message,
-      buttons
-    });
-  };
-
-  const hidePopup = () => {
-    setPopupConfig(prev => ({ ...prev, visible: false }));
-  };
-
-  const getPopupIcon = (type: PopupConfig['type']) => {
-    switch (type) {
-      case 'success':
-        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
-      case 'error':
-        return { name: 'close-circle' as const, color: '#f44336' };
-      case 'warning':
-        return { name: 'warning' as const, color: '#ff9800' };
-      case 'info':
-      default:
-        return { name: 'information-circle' as const, color: '#1a73e8' };
-    }
-  };
-
-  const CustomPopup = () => {
-    if (!popupConfig.visible) return null;
-    
-    const icon = getPopupIcon(popupConfig.type);
-    
-    return (
-      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
-        <View style={styles.popupOverlay}>
-          <View style={styles.popupContainer}>
-            <View style={styles.popupIconContainer}>
-              <Ionicons name={icon.name} size={64} color={icon.color} />
-            </View>
-            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
-            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
-            
-            <View style={styles.popupButtonsContainer}>
-              {popupConfig.buttons.map((button, index) => (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.popupButton,
-                    button.style === 'cancel' && styles.popupCancelButton,
-                    button.style === 'destructive' && styles.popupDestructiveButton,
-                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
-                  ]} 
-                  onPress={button.onPress}
-                >
-                  <Text style={[
-                    styles.popupButtonText,
-                    button.style === 'cancel' && styles.popupCancelButtonText,
-                    button.style === 'destructive' && styles.popupDestructiveButtonText
-                  ]}>
-                    {button.text}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   const textStyle = {
     fontFamily: 'Montserrat_400Regular',
     color: '#1a2238',
   };
 
-  // Handle Remember Me toggle
   const handleRememberMeToggle = async (value: boolean) => {
     setRememberMe(value);
     try {
       await AsyncStorage.setItem('rememberMe', value.toString());
       
-      // If turning off remember me, clear saved credentials
       if (!value) {
         await AsyncStorage.removeItem('userCredentials');
-        console.log('✅ Cleared saved credentials');
       }
     } catch (error) {
       console.error('Error saving remember me preference:', error);
@@ -189,53 +92,42 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const result = await authAPI.login(email, password);
 
-      const data = await res.json();
-
-      if (res.ok) {
-        // ✅ Store the authentication token
-        if (data.token) {
-          await AsyncStorage.setItem('authToken', data.token);
-          console.log('✅ Token stored successfully');
+      if (result.success && result.data) {
+        // Store the authentication token
+        if (result.data.token) {
+          await AsyncStorage.setItem('authToken', result.data.token);
         } else {
-          console.warn('⚠️ No token received from server');
+          console.warn('No token received from server');
         }
 
-        // ✅ Store complete user data
-        if (data.user) {
-          await AsyncStorage.setItem('user', JSON.stringify(data.user));
-          console.log('✅ User data stored:', data.user.email);
+        // Store complete user data
+        if (result.data.user) {
+          await AsyncStorage.setItem('user', JSON.stringify(result.data.user));
         }
 
-        // ✅ Handle remember me - Save credentials ONLY on successful login
+        // Handle remember me
         if (rememberMe) {
           await AsyncStorage.setItem('userCredentials', JSON.stringify({ email, password }));
           await AsyncStorage.setItem('rememberMe', 'true');
-          console.log('✅ Credentials saved for remember me');
         } else {
           await AsyncStorage.removeItem('userCredentials');
           await AsyncStorage.setItem('rememberMe', 'false');
-          console.log('✅ Credentials not saved (remember me disabled)');
         }
 
         setShowSuccessModal(true);
       } else {
         // Handle specific error cases
-        if (data.requiresVerification) {
-          showPopup(
+        if (result.requiresVerification) {
+          showCustom(
             'Email Not Verified',
             'Please verify your email first. We can resend the verification code.',
             [
-              { text: 'Cancel', onPress: hidePopup, style: 'cancel' },
+              { text: 'Cancel', onPress: () => {}, style: 'cancel' },
               {
                 text: 'Verify Now',
                 onPress: () => {
-                  hidePopup();
                   setIsFromSignup(false);
                   setShowVerification(true);
                 }
@@ -244,21 +136,17 @@ export default function LoginScreen() {
             'warning'
           );
         } else {
-          showPopup(
+          showError(
             'Login Failed',
-            data.error || 'Invalid credentials',
-            [{ text: 'OK', onPress: hidePopup }],
-            'error'
+            result.error || 'Invalid credentials'
           );
         }
       }
     } catch (err) {
       console.error('Login error:', err);
-      showPopup(
+      showError(
         'Error',
-        'Something went wrong. Please check your connection and try again.',
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
+        'Something went wrong. Please check your connection and try again.'
       );
     }
   };
@@ -372,7 +260,6 @@ export default function LoginScreen() {
           </Pressable>
         </View>
 
-        {/* Modals */}
         <Modal transparent animationType="slide" visible={showForgotPassword}>
           <ForgotPasswordScreen
             onClose={() => setShowForgotPassword(false)}
@@ -427,8 +314,6 @@ export default function LoginScreen() {
             </View>
           </View>
         </Modal>
-
-        <CustomPopup />
       </View>
     </SafeAreaView>
   );
@@ -589,82 +474,5 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
     fontFamily: 'BebasNeue_400Regular',
-  },
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  popupContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
-    minWidth: 280,
-    maxWidth: 350,
-  },
-  popupIconContainer: {
-    marginBottom: 16,
-  },
-  popupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a2238',
-    marginBottom: 12,
-    textAlign: 'center',
-    fontFamily: 'BebasNeue_400Regular',
-    letterSpacing: 1,
-  },
-  popupMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  popupButtonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-  },
-  popupButton: {
-    backgroundColor: '#000000',
-    paddingVertical: 14,
-    paddingHorizontal: 36,
-    borderRadius: 8,
-    minWidth: 120,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  popupButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    textAlign: 'center',
-    fontFamily: 'Montserrat_400Regular',
-    letterSpacing: 0.5,
-  },
-  popupCancelButton: {
-    backgroundColor: '#f3f3f3',
-  },
-  popupCancelButtonText: {
-    color: '#666',
-  },
-  popupDestructiveButton: {
-    backgroundColor: '#f44336',
-  },
-  popupDestructiveButtonText: {
-    color: '#fff',
   },
 });

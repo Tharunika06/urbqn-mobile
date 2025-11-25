@@ -17,20 +17,40 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../../types/navigation';
 import { useRouter } from 'expo-router';
 import { useFavorites } from '../../../components/context/FavoriteContext';
-import TransactionHandler from '../../../components/Estate/TransactionHandler';
+import { usePopup } from '../../../components/context/PopupContext';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Components
+import TransactionHandler from '../../../components/Estate/TransactionHandler';
 import PropertyHeader from '../../../components/Estate/PropertyHeader';
-import PropertyImageGallery from '../../../components/Estate/PropertyImageGallery';
 import PropertyModeSelector from '../../../components/Estate/PropertyModeSelector';
 import PropertyOwnerCard from '../../../components/Estate/PropertyOwnerCard';
 import PropertyFacilities from '../../../components/Estate/PropertyFacilities';
 import LocationSection from '../../../components/Estate/LocationSection';
 import ReviewsSection from '../../../components/Estate/ReviewsSection';
-import * as Location from 'expo-location';
+import { BASE_URL } from '@/services/api.service';
 
-const API_BASE_URL = 'http://localhost:5000';
-const LOCATIONIQ_API_KEY = 'pk.9bdd1304713dd24e813e3b1207af245b';
+// Services
+import {
+  fetchPropertyReviews,
+  checkPendingReview,
+  dismissPendingReviewPopup,
+  deletePendingReview,
+  getUserLocation,
+  geocodeAddress,
+  getCustomerIdentifier,
+} from '../../../services/estateService';
+
+// Utils
+import {
+  parsePrice,
+  formatPrice,
+  formatDate,
+  calculateDistance,
+  formatDistance,
+  getImageSrc,
+  calculateAverageRating,
+} from '../../../utils/estateUtils';
 
 type EstateDetailsRouteProp = RouteProp<RootStackParamList, 'auth/Estate/EstateDetails'>;
 
@@ -63,63 +83,6 @@ export type EstateDetailsProps = {
   };
 };
 
-interface PopupProps {
-  visible: boolean;
-  title: string;
-  message: string;
-  onClose: () => void;
-  type?: 'success' | 'error' | 'warning';
-}
-
-const CustomPopup: React.FC<PopupProps> = ({ visible, title, message, onClose, type = 'error' }) => {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    if (visible) {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }).start();
-    } else {
-      scaleAnim.setValue(0);
-    }
-  }, [visible]);
-
-  const getIconColor = () => {
-    switch (type) {
-      case 'success':
-        return '#4CAF50';
-      case 'error':
-        return '#F44336';
-      case 'warning':
-        return '#FF9800';
-      default:
-        return '#F44336';
-    }
-  };
-
-  return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <View style={popupStyles.overlay}>
-        <Animated.View style={[popupStyles.container, { transform: [{ scale: scaleAnim }] }]}>
-          <View style={[popupStyles.iconCircle, { backgroundColor: getIconColor() }]}>
-            <Text style={popupStyles.iconText}>
-              {type === 'success' ? '✓' : type === 'warning' ? '!' : '✕'}
-            </Text>
-          </View>
-          <Text style={popupStyles.title}>{title}</Text>
-          <Text style={popupStyles.message}>{message}</Text>
-          <Pressable style={popupStyles.button} onPress={onClose}>
-            <Text style={popupStyles.buttonText}>OK</Text>
-          </Pressable>
-        </Animated.View>
-      </View>
-    </Modal>
-  );
-};
-
 const textStyle = {
   fontFamily: 'Montserrat_400Regular',
   color: '#1a2238',
@@ -130,26 +93,15 @@ export default function EstateDetails() {
   const navigation = useNavigation();
   const { property } = route.params;
   const router = useRouter();
+  const { showError, showWarning } = usePopup();
 
   const { favorites, toggleFavorite } = useFavorites();
   const [displayMode, setDisplayMode] = useState<'rent' | 'sale' | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
-  const [popup, setPopup] = useState<{
-    visible: boolean;
-    title: string;
-    message: string;
-    type: 'success' | 'error' | 'warning';
-    onCloseAction?: () => void;
-  }>({
-    visible: false,
-    title: '',
-    message: '',
-    type: 'error',
-  });
 
-  // ✅ NEW: Distance calculation states
+  // Distance calculation states
   const [propertyDistance, setPropertyDistance] = useState<string | null>(null);
   const [calculatingDistance, setCalculatingDistance] = useState(false);
 
@@ -163,114 +115,40 @@ export default function EstateDetails() {
   const propertyId = property._id ?? property.name;
   const isFavorite = favorites.includes(String(propertyId));
 
-  const showPopup = (
-    title: string,
-    message: string,
-    type: 'success' | 'error' | 'warning' = 'error',
-    onCloseAction?: () => void
-  ) => {
-    setPopup({ visible: true, title, message, type, onCloseAction });
-  };
-
-  const closePopup = () => {
-    const action = popup.onCloseAction;
-    setPopup({ visible: false, title: '', message: '', type: 'error' });
-    if (action) action();
-  };
-
-  const getImageSrc = (photo: string | any) => {
-    if (photo && typeof photo === 'string' && photo.startsWith('data:image/')) {
-      return { uri: photo };
-    }
-    if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `${API_BASE_URL}${photo}` };
-    }
-    if (photo && typeof photo === 'string' && photo.startsWith('http')) {
-      return { uri: photo };
-    }
-    if (photo && typeof photo === 'object') {
-      return photo;
-    }
-    return require('../../../assets/images/placeholder.png');
-  };
-
-  // ✅ NEW: Calculate distance to property
+  // Calculate distance to property
   const calculatePropertyDistance = async () => {
     if (!property._id || !property.location) {
-      console.log('⏭️ Skipping distance calculation - no property data');
       return;
     }
     
     setCalculatingDistance(true);
     
     try {
-      console.log('📏 Calculating distance to property...');
-      
-      // Get user location
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('❌ Location permission denied for distance calculation');
+      const userLocation = await getUserLocation();
+      if (!userLocation) {
+        console.log('Could not get user location');
         setCalculatingDistance(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      console.log('📍 User location obtained:', location.coords.latitude, location.coords.longitude);
-
-      // Geocode property address
-      const cleanAddress = (property.address || property.location || '').trim();
-      const searchQuery = `${cleanAddress}, India`;
-      
-      console.log('🔍 Geocoding for distance:', searchQuery);
-      
-      const geocodeUrl = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(searchQuery)}&format=json&limit=1&countrycodes=in`;
-
-      const geocodeResponse = await fetch(geocodeUrl);
-      if (!geocodeResponse.ok) {
-        console.log('❌ Geocoding failed for distance calculation');
+      const propertyCoords = await geocodeAddress(property.address || property.location);
+      if (!propertyCoords) {
         setCalculatingDistance(false);
         return;
       }
 
-      const geocodeData = await geocodeResponse.json();
-      if (!geocodeData || geocodeData.length === 0) {
-        console.log('❌ No geocoding results for distance');
-        setCalculatingDistance(false);
-        return;
-      }
+      const distance = calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        propertyCoords.latitude,
+        propertyCoords.longitude
+      );
 
-      const propertyCoords = {
-        latitude: parseFloat(geocodeData[0].lat),
-        longitude: parseFloat(geocodeData[0].lon),
-      };
-
-      console.log('📍 Property location:', propertyCoords.latitude, propertyCoords.longitude);
-
-      // Calculate straight-line distance using Haversine formula
-      const R = 6371; // Earth's radius in km
-      const dLat = (propertyCoords.latitude - location.coords.latitude) * Math.PI / 180;
-      const dLon = (propertyCoords.longitude - location.coords.longitude) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(location.coords.latitude * Math.PI / 180) * 
-        Math.cos(propertyCoords.latitude * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = R * c;
-
-      // Format distance
-      const formattedDistance = distance < 1 
-        ? `${Math.round(distance * 1000)} m`
-        : `${distance.toFixed(1)} km`;
-
+      const formattedDistance = formatDistance(distance);
       setPropertyDistance(formattedDistance);
-      console.log('✅ Distance calculated:', formattedDistance);
 
     } catch (error) {
-      console.error('❌ Error calculating distance:', error);
+      console.error('Error calculating distance:', error);
     } finally {
       setCalculatingDistance(false);
     }
@@ -279,44 +157,34 @@ export default function EstateDetails() {
   // Check for pending reviews
   const checkForPendingReview = async () => {
     try {
-      const customerPhone = await AsyncStorage.getItem('customerPhone');
-      const customerEmail = await AsyncStorage.getItem('customerEmail');
-      const customerName = await AsyncStorage.getItem('customerName');
+      const { identifier, phone, email, name } = await getCustomerIdentifier();
       
-      const customerIdentifier = customerPhone || customerEmail;
-      
-      if (!customerIdentifier || !property._id) {
-        console.log('🔍 No customer identifier or property ID found');
+      if (!identifier || !property._id) {
+        console.log('No customer identifier or property ID found');
         return;
       }
 
-      console.log('🔍 Checking for pending review...');
+      console.log('Checking for pending review...');
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/reviews/pending/${property._id}/${encodeURIComponent(customerIdentifier)}`
-      );
+      const data = await checkPendingReview(property._id, identifier);
+      console.log('Pending review check response:', data);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Pending review check response:', data);
-
-        if (data.hasPendingReview) {
-          setPendingReviewInfo({
-            hasPendingReview: true,
-            customerInfo: {
-              phone: customerPhone,
-              email: customerEmail,
-              name: customerName || data.customerName || 'Anonymous'
-            }
-          });
-          
-          if (data.showPopup) {
-            setShowReviewPrompt(true);
+      if (data.hasPendingReview) {
+        setPendingReviewInfo({
+          hasPendingReview: true,
+          customerInfo: {
+            phone,
+            email,
+            name: name || data.customerName || 'Anonymous'
           }
+        });
+        
+        if (data.showPopup) {
+          setShowReviewPrompt(true);
         }
       }
     } catch (error) {
-      console.error('❌ Error checking pending review:', error);
+      console.error('Error checking pending review:', error);
     }
   };
 
@@ -338,53 +206,16 @@ export default function EstateDetails() {
         }
       });
     } else if (action === 'later') {
-      try {
-        const customerPhone = await AsyncStorage.getItem('customerPhone');
-        const customerEmail = await AsyncStorage.getItem('customerEmail');
-        const customerIdentifier = customerPhone || customerEmail;
-
-        if (customerIdentifier) {
-          await fetch(
-            `${API_BASE_URL}/api/reviews/pending/dismiss-popup`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                propertyId: property._id,
-                customerIdentifier: customerIdentifier,
-              })
-            }
-          );
-          console.log('✅ Popup dismissed, pending review still active');
-        }
-      } catch (error) {
-        console.error('❌ Error dismissing popup:', error);
+      const { identifier } = await getCustomerIdentifier();
+      if (identifier) {
+        await dismissPendingReviewPopup(property._id, identifier);
       }
     } else if (action === 'dismiss') {
-      deletePendingReview();
+      const { identifier } = await getCustomerIdentifier();
+      if (identifier) {
+        await deletePendingReview(property._id, identifier);
+      }
       setPendingReviewInfo(null);
-    }
-  };
-
-  // Delete pending review
-  const deletePendingReview = async () => {
-    try {
-      const customerPhone = await AsyncStorage.getItem('customerPhone');
-      const customerEmail = await AsyncStorage.getItem('customerEmail');
-      const customerIdentifier = customerPhone || customerEmail;
-
-      if (!customerIdentifier) return;
-
-      await fetch(
-        `${API_BASE_URL}/api/reviews/pending/${property._id}/${encodeURIComponent(customerIdentifier)}`,
-        { method: 'DELETE' }
-      );
-      
-      console.log('✅ Pending review deleted');
-    } catch (error) {
-      console.error('❌ Error deleting pending review:', error);
     }
   };
 
@@ -466,62 +297,33 @@ export default function EstateDetails() {
         setDisplayMode('sale');
       }
     }
-    fetchReviews();
+    loadReviews();
     checkForPendingReview();
-    calculatePropertyDistance(); // ✅ Calculate distance on load
+    calculatePropertyDistance();
   }, [property]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       checkForPendingReview();
-      fetchReviews();
-      calculatePropertyDistance(); // ✅ Recalculate on screen focus
+      loadReviews();
+      calculatePropertyDistance();
     });
 
     return unsubscribe;
   }, [navigation]);
 
-  const fetchReviews = async () => {
+  const loadReviews = async () => {
     if (!property._id) return;
     setLoadingReviews(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reviews/property/${property._id}`);
-      if (response.ok) {
-        const reviewData = await response.json();
-        setReviews(reviewData);
-        if (reviewData.length > 0) {
-          const totalRating = reviewData.reduce((sum: number, review: Review) => sum + review.rating, 0);
-          setAverageRating(totalRating / reviewData.length);
-        }
-      }
+      const reviewData = await fetchPropertyReviews(property._id);
+      setReviews(reviewData);
+      setAverageRating(calculateAverageRating(reviewData));
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      console.error('Error loading reviews:', error);
     } finally {
       setLoadingReviews(false);
     }
-  };
-
-  const parsePrice = (price: string | number | null | undefined): number | null => {
-    if (price === null || price === undefined || price === '') return null;
-    if (typeof price === 'number') return price;
-    const cleanPrice = String(price).replace(/[^0-9.-]+/g, '');
-    const numericPrice = parseFloat(cleanPrice);
-    return !isNaN(numericPrice) ? numericPrice : null;
-  };
-
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat('en-IN').format(price);
-  };
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) return '1 day ago';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return `${Math.floor(diffDays / 30)} months ago`;
   };
 
   const renderStars = (rating: number, size = 14) => {
@@ -555,7 +357,7 @@ export default function EstateDetails() {
 
   const handleViewOnMap = () => {
     if (!property) {
-      showPopup('Error', 'Property data is not available', 'error');
+      showError('Error', 'Property data is not available');
       return;
     }
     
@@ -567,13 +369,10 @@ export default function EstateDetails() {
         location: property.location || property.address || '',
       };
 
-      console.log('📍 Sending property to map (location only - will auto-geocode):', propertyForMap);
-
       if (!propertyForMap.address && !propertyForMap.location) {
-        showPopup(
+        showWarning(
           'Location Not Available',
-          'This property does not have location information. Please contact the property owner.',
-          'warning'
+          'This property does not have location information. Please contact the property owner.'
         );
         return;
       }
@@ -585,7 +384,7 @@ export default function EstateDetails() {
       
     } catch (error) {
       console.error('Error preparing property data for map:', error);
-      showPopup('Error', 'Failed to prepare property data for map', 'error');
+      showError('Error', 'Failed to prepare property data for map');
     }
   };
 
@@ -609,11 +408,7 @@ export default function EstateDetails() {
       
       const errorMessage = error instanceof Error ? error.message : 'Unable to update favorites. Please check your internet connection and try again.';
       
-      showPopup(
-        'Connection Error',
-        errorMessage,
-        'error'
-      );
+      showError('Connection Error', errorMessage);
     }
   };
 
@@ -631,7 +426,7 @@ export default function EstateDetails() {
             property={property}
             isFavorite={isFavorite}
             handleToggleFavorite={handleToggleFavorite}
-            getImageSrc={getImageSrc}
+            getImageSrc={(photo) => getImageSrc(photo, BASE_URL)}
           />
         </View>
 
@@ -659,7 +454,6 @@ export default function EstateDetails() {
         <PropertyOwnerCard ownerName={property.ownerName} />
         <PropertyFacilities facilities={property.facility} />
         
-        {/* ✅ UPDATED: Pass distance props to LocationSection */}
         <LocationSection
           address={property.address}
           handleViewOnMap={handleViewOnMap}
@@ -683,14 +477,6 @@ export default function EstateDetails() {
         />
       </ScrollView>
 
-      <CustomPopup
-        visible={popup.visible}
-        title={popup.title}
-        message={popup.message}
-        type={popup.type}
-        onClose={closePopup}
-      />
-
       <ReviewPromptModal />
     </SafeAreaView>
   );
@@ -711,133 +497,16 @@ const styles = StyleSheet.create({
   location: { color: '#888', marginTop: 4, fontSize: 13 },
 });
 
-const popupStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  container: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '85%',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconText: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  title: {
-    fontSize: 20,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#1a2238',
-    marginBottom: 8,
-  },
-  message: {
-    fontSize: 14,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#6c6c6c',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  button: {
-    backgroundColor: '#1a2238',
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 8,
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-});
-
 const reviewPromptStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'flex-end',
-  },
-  container: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFF9E6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#1a2238',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 15,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-    paddingHorizontal: 10,
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  dismissButton: {
-    backgroundColor: '#f3f3f3',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  dismissButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-  reviewButton: {
-    backgroundColor: '#1a73e8',
-  },
-  reviewButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Montserrat_600SemiBold',
-  },
+  overlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'flex-end' },
+  container: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, alignItems: 'center' },
+  iconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF9E6', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  title: { fontSize: 22, fontFamily: 'Montserrat_700Bold', color: '#1a2238', marginBottom: 12, textAlign: 'center' },
+  message: { fontSize: 15, fontFamily: 'Montserrat_400Regular', color: '#666', textAlign: 'center', marginBottom: 24, lineHeight: 22, paddingHorizontal: 10 },
+  buttonsContainer: { flexDirection: 'row', width: '100%', gap: 12 },
+  button: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  dismissButton: { backgroundColor: '#f3f3f3', borderWidth: 1, borderColor: '#e0e0e0' },
+  dismissButtonText: { color: '#666', fontSize: 16, fontFamily: 'Montserrat_600SemiBold' },
+  reviewButton: { backgroundColor: '#1a73e8' },
+  reviewButtonText: { color: '#fff', fontSize: 16, fontFamily: 'Montserrat_600SemiBold' },
 });

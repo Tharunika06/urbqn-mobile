@@ -7,14 +7,23 @@ import {
   Pressable,
   StyleSheet,
   Dimensions,
- StatusBar,
+  StatusBar,
   Keyboard,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import {
+  SAMPLE_LOCATION,
+  MAP_UI_POSITIONS,
+  MAP_UI_SPACING,
+  MAP_ANIMATION_DURATION,
+  ACCURACY_ZOOM,
+  buildNominatimSearchUrl,
+  getNominatimHeaders,
+  formatCoordinates,
+} from '../../../utils/mapConstants';
 
 const { height } = Dimensions.get('window');
 
@@ -22,14 +31,10 @@ export default function PickLocation() {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
 
-  const [location, setLocation] = useState<Region>({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
-
-  const [address, setAddress] = useState('Lat: 37.78825, Lng: -122.4324');
+  const [location, setLocation] = useState<Region>(SAMPLE_LOCATION);
+  const [address, setAddress] = useState(
+    formatCoordinates(SAMPLE_LOCATION.latitude, SAMPLE_LOCATION.longitude)
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -37,15 +42,9 @@ export default function PickLocation() {
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'UrbanApp/1.0 (support@urbanapp.com)',
-            Accept: 'application/json',
-          },
-        }
-      );
+      const response = await fetch(buildNominatimSearchUrl(searchQuery), {
+        headers: getNominatimHeaders(),
+      });
       const data = await response.json();
       setResults(data);
       setShowResults(true);
@@ -61,13 +60,12 @@ export default function PickLocation() {
     const newRegion = {
       latitude: lat,
       longitude: lon,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+      ...ACCURACY_ZOOM.precise,
     };
 
     setLocation(newRegion);
     setAddress(item.display_name);
-    mapRef.current?.animateToRegion(newRegion, 1000);
+    mapRef.current?.animateToRegion(newRegion, MAP_ANIMATION_DURATION);
     setShowResults(false);
     Keyboard.dismiss();
   };
@@ -75,6 +73,7 @@ export default function PickLocation() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
       {/* Map */}
       <MapView ref={mapRef} style={styles.map} region={location}>
         <Marker coordinate={{ latitude: location.latitude, longitude: location.longitude }} />
@@ -142,14 +141,18 @@ export default function PickLocation() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  map: { ...StyleSheet.absoluteFillObject },
-
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
   headerRow: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 30,
-    left: 20,
-    right: 20,
+    top: MAP_UI_POSITIONS.headerTop,
+    left: MAP_UI_SPACING.horizontal,
+    right: MAP_UI_SPACING.horizontal,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -174,12 +177,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Montserrat_400Regular',
   },
-
   searchWrapper: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 100 : 80,
-    left: 20,
-    right: 20,
+    top: MAP_UI_POSITIONS.searchTop,
+    left: MAP_UI_SPACING.horizontal,
+    right: MAP_UI_SPACING.horizontal,
     zIndex: 20,
   },
   searchInput: {
@@ -194,10 +196,10 @@ const styles = StyleSheet.create({
   },
   resultsList: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 150 : 130,
-    left: 20,
-    right: 20,
-    maxHeight: 250,
+    top: MAP_UI_POSITIONS.resultsTop,
+    left: MAP_UI_SPACING.horizontal,
+    right: MAP_UI_SPACING.horizontal,
+    maxHeight: MAP_UI_SPACING.maxResultsHeight,
     backgroundColor: '#fff',
     borderRadius: 8,
     elevation: 4,
@@ -215,12 +217,11 @@ const styles = StyleSheet.create({
     color: '#333',
     flexShrink: 1,
   },
-
   bottomSheet: {
     position: 'absolute',
-    bottom: 110,
-    left: 20,
-    right: 20,
+    bottom: MAP_UI_POSITIONS.bottomSheetBottom,
+    left: MAP_UI_SPACING.horizontal,
+    right: MAP_UI_SPACING.horizontal,
     backgroundColor: '#fff',
     borderRadius: 25,
     padding: 20,
@@ -239,13 +240,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontFamily: 'Montserrat_400Regular',
   },
-
-
   bottomButtonWrapper: {
     position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
+    bottom: MAP_UI_POSITIONS.buttonBottom,
+    left: MAP_UI_SPACING.horizontal,
+    right: MAP_UI_SPACING.horizontal,
   },
   nextButton: {
     backgroundColor: '#000',
@@ -254,10 +253,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   CntButtonText: {
-
     color: '#fff',
     fontSize: 16,
-    // fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
   },
 });

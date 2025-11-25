@@ -1,12 +1,14 @@
+// urban/app/(tabs)/Profile.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, Image, ScrollView, StatusBar, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, Image, ScrollView, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import { createProfile } from '../../services/api.service';
+import {validateName,validateEmail,validatePhone,formatPhoneNumber} from '../../utils/validation.utils';
+import { pickAndConvertImage } from '../../utils/image.utils';
+import { usePopup } from '../../components/context/PopupContext';
 
 interface ProfileData {
   firstName: string | undefined;
@@ -16,19 +18,6 @@ interface ProfileData {
   phone: string | undefined;
   gender: string | undefined;
   photo: string | null | undefined;
-}
-
-// Custom popup interface
-interface PopupConfig {
-  visible: boolean;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-  buttons: {
-    text: string;
-    onPress: () => void;
-    style?: 'default' | 'cancel' | 'destructive';
-  }[];
 }
 
 export default function Profile() {
@@ -45,233 +34,65 @@ export default function Profile() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { showError, showSuccess } = usePopup();
 
-  // Custom popup state
-  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
-    visible: false,
-    type: 'info',
-    title: '',
-    message: '',
-    buttons: []
-  });
-
-  const showPopup = (
-    title: string, 
-    message: string, 
-    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
-    type: PopupConfig['type'] = 'info'
-  ) => {
-    setPopupConfig({
-      visible: true,
-      type,
-      title,
-      message,
-      buttons
-    });
-  };
-
-  const hidePopup = () => {
-    setPopupConfig(prev => ({ ...prev, visible: false }));
-  };
-
-  // Get popup icon based on type
-  const getPopupIcon = (type: PopupConfig['type']) => {
-    switch (type) {
-      case 'success':
-        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
-      case 'error':
-        return { name: 'close-circle' as const, color: '#f44336' };
-      case 'warning':
-        return { name: 'warning' as const, color: '#ff9800' };
-      case 'info':
-      default:
-        return { name: 'information-circle' as const, color: '#1a73e8' };
-    }
-  };
-
-  // Custom popup component
-  const CustomPopup = () => {
-    if (!popupConfig.visible) return null;
-    
-    const icon = getPopupIcon(popupConfig.type);
-    
-    return (
-      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
-        <View style={styles.popupOverlay}>
-          <View style={styles.popupContainer}>
-            <View style={styles.popupIconContainer}>
-              <Ionicons name={icon.name} size={64} color={icon.color} />
-            </View>
-            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
-            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
-            
-            <View style={styles.popupButtonsContainer}>
-              {popupConfig.buttons.map((button, index) => (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.popupButton,
-                    button.style === 'cancel' && styles.popupCancelButton,
-                    button.style === 'destructive' && styles.popupDestructiveButton,
-                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
-                  ]} 
-                  onPress={button.onPress}
-                >
-                  <Text style={[
-                    styles.popupButtonText,
-                    button.style === 'cancel' && styles.popupCancelButtonText,
-                    button.style === 'destructive' && styles.popupDestructiveButtonText
-                  ]}>
-                    {button.text}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  // ✅ Pick image and convert to base64
+  // Pick image using utility
   const pickImage = async () => {
     try {
-      // Request permissions
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (permissionResult.granted === false) {
-        showPopup(
-          "Permission Required", 
-          "Permission to access camera roll is required!",
-          [{ text: 'OK', onPress: hidePopup }],
-          'warning'
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      const base64Image = await pickAndConvertImage('library', {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true, // ✅ Get base64 data
+        width: 400,
+        height: 400,
+        compress: 0.7
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        
-        // ✅ Determine proper MIME type from URI
-        let mimeType = 'image/jpeg'; // default
-        if (asset.uri) {
-          const extension = asset.uri.split('.').pop()?.toLowerCase();
-          switch (extension) {
-            case 'png':
-              mimeType = 'image/png';
-              break;
-            case 'gif':
-              mimeType = 'image/gif';
-              break;
-            case 'webp':
-              mimeType = 'image/webp';
-              break;
-            default:
-              mimeType = 'image/jpeg';
-          }
-        }
-        
-        // ✅ Create proper data URL format with specific MIME type
-        const base64Image = `data:${mimeType};base64,${asset.base64}`;
-        
-        console.log('Image MIME type:', mimeType);
-        console.log('Base64 prefix:', base64Image.substring(0, 50) + '...');
-        
-        setProfile({
-          ...profile,
-          photo: base64Image,
-        });
+      if (base64Image) {
+        setProfile({ ...profile, photo: base64Image });
       }
     } catch (error) {
       console.error('Image picker error:', error);
-      showPopup(
-        "Error", 
-        "Failed to pick image",
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
-      );
+      showError("Error", "Failed to pick image");
     }
   };
 
-  // ✅ Validate email format
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  // ✅ Validate phone number (exactly 10 digits)
-  const isValidPhone = (phone: string) => {
-    // Remove all non-digit characters
-    const digitsOnly = phone.replace(/\D/g, '');
-    // Check if exactly 10 digits
-    return digitsOnly.length === 10;
-  };
-
-  // ✅ Save profile with proper validation and error handling
+  // Save profile with validation
   const handleSave = async () => {
     try {
-      // ✅ Enhanced validation
-      if (!profile.firstName?.trim()) {
-        showPopup(
-          "Validation Error", 
-          "First Name is required.",
-          [{ text: 'OK', onPress: hidePopup }],
-          'error'
-        );
+      // Validate first name
+      const firstNameValidation = validateName(profile.firstName || '', 'First name');
+      if (!firstNameValidation.valid) {
+        showError("Validation Error", firstNameValidation.error!);
         return;
       }
 
-      if (!profile.lastName?.trim()) {
-        showPopup(
-          "Validation Error", 
-          "Last Name is required.",
-          [{ text: 'OK', onPress: hidePopup }],
-          'error'
-        );
+      // Validate last name
+      const lastNameValidation = validateName(profile.lastName || '', 'Last name');
+      if (!lastNameValidation.valid) {
+        showError("Validation Error", lastNameValidation.error!);
         return;
       }
 
-      if (!profile.email?.trim()) {
-        showPopup(
-          "Validation Error", 
-          "Email is required.",
-          [{ text: 'OK', onPress: hidePopup }],
-          'error'
-        );
+      // Validate email
+      const emailValidation = validateEmail(profile.email || '');
+      if (!emailValidation.valid) {
+        showError("Validation Error", emailValidation.error!);
         return;
       }
 
-      if (!isValidEmail(profile.email)) {
-        showPopup(
-          "Validation Error", 
-          "Please enter a valid email address.",
-          [{ text: 'OK', onPress: hidePopup }],
-          'error'
-        );
-        return;
-      }
-
-      if (profile.phone && !isValidPhone(profile.phone)) {
-        showPopup(
-          "Validation Error", 
-          "Please enter a valid 10-digit phone number.",
-          [{ text: 'OK', onPress: hidePopup }],
-          'error'
-        );
-        return;
+      // Validate phone if provided
+      if (profile.phone) {
+        const phoneValidation = validatePhone(profile.phone);
+        if (!phoneValidation.valid) {
+          showError("Validation Error", phoneValidation.error!);
+          return;
+        }
       }
 
       setLoading(true);
 
-      // ✅ Prepare data as JSON (matching backend expectations)
+      // Prepare data
       const profileData = {
         firstName: profile.firstName?.trim(),
         lastName: profile.lastName?.trim(),
@@ -279,7 +100,7 @@ export default function Profile() {
         phone: profile.phone?.trim(),
         dob: profile.dob,
         gender: profile.gender?.toLowerCase(),
-        photo: profile.photo, // Base64 string or null
+        photo: profile.photo,
       };
 
       console.log('Sending profile data:', {
@@ -287,68 +108,38 @@ export default function Profile() {
         photo: profileData.photo ? 'Base64 image data...' : null
       });
 
-      // ✅ Use correct endpoint and send as JSON
-      const response = await axios.post(
-        "http://localhost:5000/api/profiles", // ✅ Correct endpoint
-        profileData,
-        {
-          headers: {
-            'Content-Type': 'application/json', // ✅ JSON content type
-          },
-          timeout: 30000, // 30 second timeout for large images
-        }
-      );
+      // Use API service
+      const result = await createProfile(profileData);
 
-      console.log('✅ Profile saved successfully:', response.data);
-      
-      showPopup(
-        "Success", 
-        "Profile created successfully!",
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              hidePopup();
-              // Reset form
-              setProfile({
-                firstName: '',
-                lastName: '',
-                dob: '',
-                email: '',
-                phone: '',
-                gender: '',
-                photo: null,
-              });
-              router.push('/auth/Location/select-location');
-            }
+      if (result.success) {
+        showSuccess(
+          "Success", 
+          "Profile created successfully!",
+          () => {
+            setProfile({
+              firstName: '',
+              lastName: '',
+              dob: '',
+              email: '',
+              phone: '',
+              gender: '',
+              photo: null,
+            });
+            router.push('/auth/Location/select-location');
           }
-        ],
-        'success' 
-      );
+        );
+      } else {
+        showError("Error", result.error || "Failed to save profile");
+      }
 
     } catch (err: any) {
-      console.error("❌ Save error:", err);
-      
-      let errorMessage = "Failed to save profile. Please try again.";
-      
-      if (err.response) {
-        errorMessage = err.response.data?.error || errorMessage;
-      } else if (err.code === 'ECONNABORTED') {
-        errorMessage = "Request timeout. Please try again.";
-      }
-      
-      showPopup(
-        "Error", 
-        errorMessage,
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
-      );
+      console.error("Save error:", err);
+      showError("Error", "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Handle date change
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -445,9 +236,8 @@ export default function Profile() {
             keyboardType="phone-pad"
             value={profile.phone}
             onChangeText={(text) => {
-              // Only allow digits, max 10
-              const digitsOnly = text.replace(/\D/g, '').slice(0, 10);
-              setProfile({ ...profile, phone: digitsOnly });
+              const formatted = formatPhoneNumber(text);
+              setProfile({ ...profile, phone: formatted });
             }}
             editable={!loading}
             maxLength={10}
@@ -478,34 +268,18 @@ export default function Profile() {
             </Text>
           </Pressable>
 
-          {/* Required fields note */}
           <Text style={styles.requiredNote}>* Required fields</Text>
         </View>
       </ScrollView>
-
-      {/* Custom Popup */}
-      <CustomPopup />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: '#fff' 
-  },
-  scrollView: { 
-    flex: 1 
-  },
-  scrollContent: { 
-    flexGrow: 1,
-    paddingBottom: 20
-  },
-  container: { 
-    flex: 1, 
-    backgroundColor: '#fff', 
-    padding: 20 
-  },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  scrollView: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingBottom: 20 },
+  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   title: { 
     fontSize: 24, 
     fontWeight: 'bold', 
@@ -607,75 +381,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 10,
     fontStyle: 'italic'
-  },
-
-  // Popup styles
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  popupContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
-    minWidth: 280,
-    maxWidth: 350,
-  },
-  popupIconContainer: {
-    marginBottom: 16,
-  },
-  popupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a2238',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  popupMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  popupButtonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-  },
-  popupButton: {
-    backgroundColor: '#171717ff',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    minWidth: 100,
-    marginRight:45
-  },
-  popupButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  popupCancelButton: {
-    backgroundColor: '#f3f3f3',
-  },
-  popupCancelButtonText: {
-    color: '#666',
-  },
-  popupDestructiveButton: {
-    backgroundColor: '#f44336',
-  },
-  popupDestructiveButtonText: {
-    color: '#fff',
   },
 });

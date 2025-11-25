@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
+import { BASE_URL } from '../services/api.service'
 
-const API_BASE_URL = 'http://localhost:5000/api';
 
 export const apiGet = async (endpoint: string) => {
   const token = await AsyncStorage.getItem('authToken');
@@ -11,7 +11,7 @@ export const apiGet = async (endpoint: string) => {
     throw new Error('No authentication token');
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -40,7 +40,7 @@ export const apiPost = async (endpoint: string, data: any) => {
     throw new Error('No authentication token');
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

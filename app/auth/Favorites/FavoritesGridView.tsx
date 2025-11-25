@@ -2,11 +2,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../types/navigation';
 import FavoritesEmptyPage from '../Favorites/FavoriteEmpty';
+import GradientButton from '../../../components/Button/GradientButton';
 
 type PropertyType = {
   id: string | number;
@@ -101,24 +101,18 @@ export default function FavoritesGridView({ favorites, onDelete }: Props) {
             }}
             activeOpacity={0.7}
           >
-            <LinearGradient
-              colors={['#FF4995', '#D6034F']}
-              style={styles.heartGradient}
-            >
+            <View style={styles.heartGradient}>
               <Ionicons name="heart" size={16} color="#fff" />
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
           
-          {/* Price Tag - Bottom Right Corner */}
-          <LinearGradient
-            colors={['#0075FF', '#4C9FFF']}
-            style={styles.priceTag}
-          >
+          {/* Price Tag - Bottom Right Corner using inline gradient styling */}
+          <View style={[styles.priceTag, { backgroundColor: '#0075FF' }]}>
             <Text style={styles.priceText}>{item.price}</Text>
             {item.originalProperty?.status === 'rent' && (
               <Text style={styles.periodText}>/month</Text>
             )}
-          </LinearGradient>
+          </View>
         </View>
         
         <View style={styles.cardContent}>
@@ -208,6 +202,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FF4995',
   },
   priceTag: {
     position: 'absolute',

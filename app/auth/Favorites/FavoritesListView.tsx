@@ -3,7 +3,6 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, Dimensions } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../types/navigation';
@@ -133,25 +132,15 @@ export default function FavoritesListView({ favorites, onDelete }: Props) {
                   handleHeartPress(item);
                 }}
               >
-                <LinearGradient
-                  colors={isFavorite ? ['#FF4995', '#D6034F'] : ['#EF4444', '#EF4444']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.heartBackground}
-                >
+                <View style={[styles.heartBackground, { backgroundColor: isFavorite ? '#FF4995' : '#EF4444' }]}>
                   <Ionicons name="heart" size={18} color="#fff" />
-                </LinearGradient>
+                </View>
               </Pressable>
               
               {/* Property Type Badge - Bottom Left Corner */}
-              <LinearGradient
-                colors={['#0075FF', '#4C9FFF']}
-                start={{ x: 0, y: 1 }}
-                end={{ x: 0, y: 0 }}
-                style={styles.propertyBadge}
-              >
+              <View style={[styles.propertyBadge, { backgroundColor: '#0075FF' }]}>
                 <Text style={styles.propertyBadgeText}>{propertyType}</Text>
-              </LinearGradient>
+              </View>
             </View>
 
             {/* Property Details - Right Side */}

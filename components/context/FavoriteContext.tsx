@@ -2,6 +2,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+  import { BASE_URL } from '../../services/api.service';
+
+// Import the shared Property type
+import type { Property } from '../../types/index';
 
 // Define AxiosError type if not available
 interface AxiosErrorType {
@@ -17,24 +21,6 @@ interface AxiosErrorType {
   };
   config?: any;
 }
-
-// Define the Property type to match your TopEstateGrid
-type Property = {
-  id?: string | number;
-  _id?: string;
-  name: string;
-  price?: string;
-  status?: 'rent' | 'sale' | 'both'| 'sold'; 
-  rentPrice?: string;
-  salePrice?: string;
-  photo: string | any;
-  rating: number;
-  country: string;
-  facility: string[];
-  ownerId: string;
-  ownerName: string;
-  address: string;
-};
 
 // Convert Property to PropertyType for favorites display
 type PropertyType = {
@@ -87,13 +73,12 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [favoriteProperties, setFavoriteProperties] = useState<PropertyType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const BASE_URL = "http://localhost:5000/api";
 
   // Get current user
   const getCurrentUser = async (): Promise<UserData | null> => {
     try {
       const userData = await AsyncStorage.getItem('user');
-      console.log('Retrieved user data:', userData); // Debug log
+      console.log('Retrieved user data:', userData);
       return userData ? JSON.parse(userData) : null;
     } catch (error) {
       console.error("Error getting current user:", error);
@@ -133,7 +118,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
       priceDisplay = `₹${property.price}`;
     }
 
-    // Handle image source (same logic as TopEstateGrid)
+    // Handle image source
     let imageSource;
     if (property.photo && typeof property.photo === 'string' && property.photo.startsWith('data:image/')) {
       imageSource = { uri: property.photo };
@@ -149,8 +134,8 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     return {
       id: safeId,
-      title: property.name,
-      desc: `${property.facility?.length || 0} facilities • ${property.country}`,
+      title: property.name || property.title || 'Untitled Property',
+      desc: `${property.facility?.length || 0} facilities • ${property.country || property.location || 'Location'}`,
       price: priceDisplay,
       image: imageSource,
       originalProperty: property,
@@ -175,13 +160,13 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
         return;
       }
 
-      console.log('Loading favorites for user:', user.email); // Debug log
+      console.log('Loading favorites for user:', user.email);
 
       const response = await axios.get<FavoritesApiResponse>(`${BASE_URL}/favorites/${user.email}`, {
         timeout: 10000,
       });
 
-      console.log('Favorites API response:', response.data); // Debug log
+      console.log('Favorites API response:', response.data);
 
       if (response.data && response.data.success && response.data.favorites) {
         const favoriteIds = response.data.favorites.map((fav: FavoriteItem) => fav.propertyId);
@@ -189,8 +174,8 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
           convertPropertyToPropertyType(fav.property)
         );
 
-        console.log('Setting favorites:', favoriteIds); // Debug log
-        console.log('Setting favorite properties:', favoriteProps.length); // Debug log
+        console.log('Setting favorites:', favoriteIds);
+        console.log('Setting favorite properties:', favoriteProps.length);
 
         setFavorites(favoriteIds);
         setFavoriteProperties(favoriteProps);
@@ -209,7 +194,6 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
           status: error.response?.status,
         });
       }
-      // Reset to empty on error
       setFavorites([]);
       setFavoriteProperties([]);
     } finally {
@@ -222,16 +206,15 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       const user = await getCurrentUser();
       if (!user || !user.email) {
-        console.error('❌ No user logged in or user has no email');
+        console.error(' No user logged in or user has no email');
         throw new Error('User not authenticated');
       }
 
       const propertyId = normalizePropertyId(property);
       
-      console.log('📤 Adding favorite to DB:', { userId: user.email, propertyId }); // Debug log
 
       const response = await axios.post<ApiResponse>(`${BASE_URL}/favorites`, {
-        userId: user.email,  // Using email as userId since that's what we have
+        userId: user.email,
         propertyId: propertyId,
         property: property,
       }, {
@@ -239,17 +222,15 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
         headers: { 'Content-Type': 'application/json' },
       });
 
-      console.log('✅ Add favorite response:', response.data); // Debug log
       
-      // Check if the response indicates success
       if (response.data && response.data.success !== false) {
         return true;
       }
       
-      console.warn('⚠️ Server returned unsuccessful response:', response.data);
+      console.warn(' Server returned unsuccessful response:', response.data);
       return false;
     } catch (error: unknown) {
-      console.error('❌ Error adding favorite to database:', error);
+      console.error(' Error adding favorite to database:', error);
       if (isAxiosError(error)) {
         if (error.response) {
           console.error('Response status:', error.response.status);
@@ -260,7 +241,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
           console.error('Request setup error:', error.message);
         }
       }
-      throw error; // Re-throw to handle in toggleFavorite
+      throw error;
     }
   };
 
@@ -269,11 +250,10 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       const user = await getCurrentUser();
       if (!user || !user.email) {
-        console.error('❌ No user logged in or user has no email');
+        console.error(' No user logged in or user has no email');
         throw new Error('User not authenticated');
       }
 
-      // Handle both property object and direct ID
       let propertyId: string;
       if (typeof propertyIdOrProperty === 'object') {
         propertyId = normalizePropertyId(propertyIdOrProperty);
@@ -281,32 +261,27 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
         propertyId = propertyIdOrProperty.toString();
       }
 
-      console.log('📤 Removing favorite from DB:', { userId: user.email, propertyId }); // Debug log
 
       const response = await axios.delete<ApiResponse>(`${BASE_URL}/favorites/${user.email}/${propertyId}`, {
         timeout: 10000,
       });
 
-      console.log('✅ Remove favorite response:', response.data); // Debug log
       
-      // Check if the response indicates success
       if (response.data && response.data.success !== false) {
         return true;
       }
       
-      console.warn('⚠️ Server returned unsuccessful response:', response.data);
       return false;
     } catch (error: unknown) {
-      console.error('❌ Error removing favorite from database:', error);
+      console.error(' Error removing favorite from database:', error);
       if (isAxiosError(error)) {
         if (error.response) {
           console.error('Response status:', error.response.status);
           console.error('Response data:', error.response.data);
           
-          // If the error is "Favorite not found", it might already be removed
           if (error.response.data?.message === 'Favorite not found') {
-            console.warn('⚠️ Favorite was already removed from database');
-            return true; // Consider it a success since it's not in the DB anyway
+            console.warn(' Favorite was already removed from database');
+            return true;
           }
         } else if (error.request) {
           console.error('No response received. Network issue or server down.');
@@ -314,7 +289,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
           console.error('Request setup error:', error.message);
         }
       }
-      throw error; // Re-throw to handle in toggleFavorite
+      throw error;
     }
   };
 
@@ -323,13 +298,11 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       const success = await removeFavoriteFromDb(id);
       if (success) {
-        // Update local state on successful removal
         setFavorites(prev => prev.filter(favId => favId.toString() !== id.toString()));
         setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id.toString() !== id.toString()));
       }
     } catch (error: unknown) {
-      console.error('❌ Failed to remove favorite:', error);
-      // Optionally show a user-friendly error message here
+      console.error(' Failed to remove favorite:', error);
       throw error;
     }
   };
@@ -340,19 +313,16 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
       const propertyId = normalizePropertyId(property);
       const isFavorited = favorites.some(fav => fav.toString() === propertyId);
       
-      console.log('🔄 Toggling favorite:', { propertyId, isFavorited });
+      console.log('Toggling favorite:', { propertyId, isFavorited });
       
-      // Store original state for rollback
       const originalFavorites = [...favorites];
       const originalFavoriteProperties = [...favoriteProperties];
       
       // Optimistically update UI first
       if (isFavorited) {
-        // Remove from favorites
         setFavorites(prev => prev.filter(id => id.toString() !== propertyId));
         setFavoriteProperties(prevProps => prevProps.filter(prop => prop.id.toString() !== propertyId));
       } else {
-        // Add to favorites
         const convertedProperty = convertPropertyToPropertyType(property);
         setFavorites(prev => [...prev, propertyId]);
         setFavoriteProperties(prevProps => [...prevProps, convertedProperty]);
@@ -371,14 +341,12 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
           throw new Error('Database operation returned false');
         }
         
-        console.log('✅ Successfully synced favorite with database');
+        console.log(' Successfully synced favorite with database');
       } catch (dbError: unknown) {
-        // If database operation failed, revert the UI changes
-        console.error('❌ Database sync failed, reverting UI changes:', dbError);
+        console.error('Database sync failed, reverting UI changes:', dbError);
         setFavorites(originalFavorites);
         setFavoriteProperties(originalFavoriteProperties);
         
-        // Create a user-friendly error message
         let errorMessage = 'Failed to sync with server';
         
         if (isAxiosError(dbError)) {
@@ -393,12 +361,10 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
           }
         }
         
-        // Re-throw with a clearer message
         throw new Error(errorMessage);
       }
     } catch (error: unknown) {
-      console.error('❌ Error in toggleFavorite:', error);
-      // Re-throw to allow calling code to handle it
+      console.error(' Error in toggleFavorite:', error);
       throw error;
     }
   };

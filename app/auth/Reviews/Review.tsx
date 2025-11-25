@@ -11,28 +11,15 @@ import {
   Platform,
   ScrollView,
   Image,
-  Modal,
 } from "react-native";
 import axios from "axios";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StarRating from "../../../components/StarRating";
+import { BASE_URL } from "../../../services/api.service";
+import { usePopup } from "../../../components/context/PopupContext";
 
-const API_BASE_URL = "http://localhost:5000";
-const API_URL = `${API_BASE_URL}/api/reviews`;
-
-interface PopupConfig {
-  visible: boolean;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-  buttons: {
-    text: string;
-    onPress: () => void;
-    style?: 'default' | 'cancel' | 'destructive';
-  }[];
-}
+const API_URL = `${BASE_URL}/reviews`;
 
 const ReviewScreen: React.FC = () => {
   const router = useRouter();
@@ -63,22 +50,15 @@ const ReviewScreen: React.FC = () => {
     name: ''
   });
 
-  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
-    visible: false,
-    type: 'info',
-    title: '',
-    message: '',
-    buttons: []
-  });
+  const { showWarning, showError, showSuccess, showCustom } = usePopup();
 
-  // Load customer info on mount
   useEffect(() => {
     loadCustomerInfo();
   }, []);
 
   const loadCustomerInfo = async () => {
     try {
-      // First try to get from route params (when coming from EstateDetails)
+      // First try to get from route params
       if (paramPhone || paramEmail || paramName) {
         const info = {
           phone: paramPhone || '',
@@ -92,7 +72,6 @@ const ReviewScreen: React.FC = () => {
         if (paramEmail) await AsyncStorage.setItem('customerEmail', paramEmail);
         if (paramName) await AsyncStorage.setItem('customerName', paramName);
         
-        console.log('✅ Customer info loaded from params:', info);
         return;
       }
 
@@ -108,89 +87,12 @@ const ReviewScreen: React.FC = () => {
           name: name || ''
         };
         setCustomerInfo(info);
-        console.log('✅ Customer info loaded from storage:', info);
       } else {
-        console.log('⚠️ No customer info found');
+        console.log('No customer info found');
       }
     } catch (error) {
-      console.error('❌ Error loading customer info:', error);
+      console.error('Error loading customer info:', error);
     }
-  };
-
-  const showPopup = (
-    title: string,
-    message: string,
-    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
-    type: PopupConfig['type'] = 'info'
-  ) => {
-    setPopupConfig({
-      visible: true,
-      type,
-      title,
-      message,
-      buttons
-    });
-  };
-
-  const hidePopup = () => {
-    setPopupConfig(prev => ({ ...prev, visible: false }));
-  };
-
-  const getPopupIcon = (type: PopupConfig['type']) => {
-    switch (type) {
-      case 'success':
-        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
-      case 'error':
-        return { name: 'close-circle' as const, color: '#f44336' };
-      case 'warning':
-        return { name: 'warning' as const, color: '#ff9800' };
-      case 'info':
-      default:
-        return { name: 'information-circle' as const, color: '#1a73e8' };
-    }
-  };
-
-  const CustomPopup = () => {
-    if (!popupConfig.visible) return null;
-    
-    const icon = getPopupIcon(popupConfig.type);
-    
-    return (
-      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
-        <View style={styles.popupOverlay}>
-          <View style={styles.popupContainer}>
-            <View style={styles.popupIconContainer}>
-              <Ionicons name={icon.name} size={64} color={icon.color} />
-            </View>
-            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
-            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
-            
-            <View style={styles.popupButtonsContainer}>
-              {popupConfig.buttons.map((button, index) => (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.popupButton,
-                    button.style === 'cancel' && styles.popupCancelButton,
-                    button.style === 'destructive' && styles.popupDestructiveButton,
-                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
-                  ]} 
-                  onPress={button.onPress}
-                >
-                  <Text style={[
-                    styles.popupButtonText,
-                    button.style === 'cancel' && styles.popupCancelButtonText,
-                    button.style === 'destructive' && styles.popupDestructiveButtonText
-                  ]}>
-                    {button.text}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
   };
 
   const getImageSrc = () => {
@@ -200,7 +102,7 @@ const ReviewScreen: React.FC = () => {
       return { uri: photo };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `${API_BASE_URL}${photo}` };
+      return { uri: `${BASE_URL}${photo}` };
     }
     if (photo && typeof photo === 'string' && photo.startsWith('http')) {
       return { uri: photo };
@@ -212,12 +114,12 @@ const ReviewScreen: React.FC = () => {
   const markReviewPending = async () => {
     try {
       if (!customerInfo.phone) {
-        console.log('⚠️ No customer phone available, cannot mark as pending');
+        console.log('No customer phone available, skipping pending review');
         return;
       }
       
       await axios.post(
-        `${API_BASE_URL}/api/reviews/pending`,
+        `${API_URL}/pending`,
         {
           propertyId,
           customerPhone: customerInfo.phone,
@@ -232,27 +134,30 @@ const ReviewScreen: React.FC = () => {
         }
       );
       
-      console.log('✅ Review marked as pending');
+      console.log('Review marked as pending');
     } catch (error: any) {
-      console.error("❌ Failed to mark review as pending:", error.response?.data || error.message);
+      if (error.response?.status === 404) {
+        console.log('No transaction found');
+      } else {
+        console.error("Failed to mark review as pending:", error.response?.data || error.message);
+      }
     }
   };
 
   const handleCancel = () => {
     if (rating > 0 || comment.trim()) {
-      showPopup(
+      showCustom(
         "Discard Review?",
         "You have unsaved changes. Are you sure you want to leave without saving?",
         [
           {
             text: 'Keep Editing',
-            onPress: hidePopup,
+            onPress: () => {},
             style: 'cancel'
           },
           {
             text: 'Review Later',
             onPress: async () => {
-              hidePopup();
               await markReviewPending();
               router.back();
             },
@@ -262,52 +167,43 @@ const ReviewScreen: React.FC = () => {
         'warning'
       );
     } else {
-      markReviewPending();
-      router.back();
+      markReviewPending().finally(() => router.back());
     }
   };
 
   const handleSubmit = async () => {
     // Validate rating
     if (rating === 0) {
-      showPopup(
+      showWarning(
         "Rating Required",
-        "Please select a star rating before submitting.",
-        [{ text: 'OK', onPress: hidePopup }],
-        'warning'
+        "Please select a star rating before submitting."
       );
       return;
     }
 
     // Validate comment
     if (!comment.trim()) {
-      showPopup(
+      showWarning(
         "Comment Required",
-        "Please write a brief comment about your experience.",
-        [{ text: 'OK', onPress: hidePopup }],
-        'warning'
+        "Please write a brief comment about your experience."
       );
       return;
     }
 
     // Validate property ID
     if (!propertyId) {
-      showPopup(
+      showError(
         "Error",
-        "Property information is missing.",
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
+        "Property information is missing."
       );
       return;
     }
 
     // Validate customer info
     if (!customerInfo.phone) {
-      showPopup(
+      showError(
         "Error",
-        "Customer information is missing. Please complete a transaction first.",
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
+        "Customer information is missing. Please complete a transaction first."
       );
       return;
     }
@@ -332,28 +228,17 @@ const ReviewScreen: React.FC = () => {
         }
       );
 
-      console.log('✅ Review submitted successfully:', response.data);
-
       // Clear draft from AsyncStorage after successful submission
       const draftKey = `review_draft_${propertyId}_${customerInfo.phone}`;
       await AsyncStorage.removeItem(draftKey);
 
-      showPopup(
+      showSuccess(
         "Success",
         "Thank you! Your review has been submitted.",
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              hidePopup();
-              router.back();
-            }
-          }
-        ],
-        'success'
+        () => router.back()
       );
     } catch (error: any) {
-      console.error("❌ Failed to submit review:", error);
+      console.error("Failed to submit review:", error);
       
       let errorMessage = "We couldn't submit your review. Please try again later.";
       
@@ -365,11 +250,9 @@ const ReviewScreen: React.FC = () => {
         errorMessage = error.response.data?.error || error.response.data?.message || `Server error: ${error.response.status}`;
       }
       
-      showPopup(
+      showError(
         "Submission Error",
-        errorMessage,
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
+        errorMessage
       );
     } finally {
       setIsSubmitting(false);
@@ -441,8 +324,6 @@ const ReviewScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
-
-      <CustomPopup />
     </KeyboardAvoidingView>
   );
 };
@@ -545,76 +426,5 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: "#666",
-  },
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  popupContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
-    minWidth: 280,
-    maxWidth: 350,
-  },
-  popupIconContainer: {
-    marginBottom: 16,
-  },
-  popupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a2238',
-    marginBottom: 12,
-    textAlign: 'center',
-    fontFamily: "Montserrat_700Bold",
-  },
-  popupMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-    fontFamily: "Montserrat_400Regular",
-  },
-  popupButtonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-  },
-  popupButton: {
-    backgroundColor: '#1a73e8',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    minWidth: 100,
-    marginRight: 58,
-  },
-  popupButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    fontFamily: "Montserrat_600SemiBold",
-  },
-  popupCancelButton: {
-    backgroundColor: '#f3f3f3',
-  },
-  popupCancelButtonText: {
-    color: '#666',
-  },
-  popupDestructiveButton: {
-    backgroundColor: '#f44336',
-  },
-  popupDestructiveButtonText: {
-    color: '#fff',
   },
 });

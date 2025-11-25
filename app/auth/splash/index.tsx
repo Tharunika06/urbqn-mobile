@@ -16,7 +16,7 @@ router.push('/auth/onboarding/page1');
   return (
     <View style={styles.container}>
       <Image
-        source={require('../../../assets/images/logo1.png')} // ✅ Update path if logo is elsewhere
+        source={require('../../../assets/images/logo1.png')} //  Update path if logo is elsewhere
         style={styles.logo}
         resizeMode="contain"
       />

@@ -1,3 +1,6 @@
+// urban/app/auth/VerificationScreen.tsx
+// ============================================================================
+
 import React, { useRef, useState } from 'react';
 import {
   View,
@@ -7,16 +10,13 @@ import {
   StyleSheet,
   Dimensions,
   Image,
-  Modal,
-  Animated,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import {
-  useFonts,
-  BebasNeue_400Regular,
-} from '@expo-google-fonts/bebas-neue';
+import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { Montserrat_400Regular } from '@expo-google-fonts/montserrat';
 import GradientButton from '../../components/Button/GradientButton';
+import { authAPI } from '../../services/api.service';
+import { usePopup } from '../../components/context/PopupContext';
 
 interface VerificationProps {
   onClose: () => void;
@@ -24,63 +24,6 @@ interface VerificationProps {
   isFromSignup?: boolean;
   email: string;
 }
-
-interface PopupProps {
-  visible: boolean;
-  title: string;
-  message: string;
-  onClose: () => void;
-  type?: 'success' | 'error' | 'warning';
-}
-
-const CustomPopup: React.FC<PopupProps> = ({ visible, title, message, onClose, type = 'error' }) => {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    if (visible) {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }).start();
-    } else {
-      scaleAnim.setValue(0);
-    }
-  }, [visible]);
-
-  const getIconColor = () => {
-    switch (type) {
-      case 'success':
-        return '#4CAF50';
-      case 'error':
-        return '#F44336';
-      case 'warning':
-        return '#FF9800';
-      default:
-        return '#F44336';
-    }
-  };
-
-  return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <View style={styles.popupOverlay}>
-        <Animated.View style={[styles.popupContainer, { transform: [{ scale: scaleAnim }] }]}>
-          <View style={[styles.iconCircle, { backgroundColor: getIconColor() }]}>
-            <Text style={styles.iconText}>
-              {type === 'success' ? '✓' : type === 'warning' ? '!' : '✕'}
-            </Text>
-          </View>
-          <Text style={styles.popupTitle}>{title}</Text>
-          <Text style={styles.popupMessage}>{message}</Text>
-          <Pressable style={styles.popupButton} onPress={onClose}>
-            <Text style={styles.popupButtonText}>OK</Text>
-          </Pressable>
-        </Animated.View>
-      </View>
-    </Modal>
-  );
-};
 
 export default function VerificationScreen({
   onClose,
@@ -90,18 +33,7 @@ export default function VerificationScreen({
 }: VerificationProps) {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const inputs = useRef<Array<TextInput | null>>([]);
-  const [popup, setPopup] = useState<{
-    visible: boolean;
-    title: string;
-    message: string;
-    type: 'success' | 'error' | 'warning';
-    onCloseAction?: () => void;
-  }>({
-    visible: false,
-    title: '',
-    message: '',
-    type: 'error',
-  });
+  const { showWarning, showSuccess, showError } = usePopup();
 
   const [fontsLoaded] = useFonts({
     BebasNeue_400Regular,
@@ -109,21 +41,6 @@ export default function VerificationScreen({
   });
 
   if (!fontsLoaded) return null;
-
-  const showPopup = (
-    title: string,
-    message: string,
-    type: 'success' | 'error' | 'warning' = 'error',
-    onCloseAction?: () => void
-  ) => {
-    setPopup({ visible: true, title, message, type, onCloseAction });
-  };
-
-  const closePopup = () => {
-    const action = popup.onCloseAction;
-    setPopup({ visible: false, title: '', message: '', type: 'error' });
-    if (action) action();
-  };
 
   const handleChangeText = (val: string, index: number) => {
     const newCode = [...code];
@@ -142,29 +59,23 @@ export default function VerificationScreen({
   const handleVerify = async (otpParam?: string) => {
     const otp = otpParam || code.join('');
     if (otp.length < 6) {
-      showPopup('Incomplete OTP', 'Please enter the full 6-digit code.', 'warning');
+      showWarning('Incomplete OTP', 'Please enter the full 6-digit code.');
       return;
     }
 
-    const endpoint = isFromSignup ? '/api/verify-code' : '/api/verify-reset-otp';
-
     try {
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
-      });
+      const result = isFromSignup 
+        ? await authAPI.verifySignupOTP(email, otp)
+        : await authAPI.verifyResetOTP(email, otp);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        showPopup('Success', 'OTP verified successfully', 'success', onContinue);
+      if (result.success) {
+        showSuccess('Success', 'OTP verified successfully', onContinue);
       } else {
-        showPopup('Verification Failed', data.error || 'Invalid or expired OTP', 'error');
+        showError('Verification Failed', result.error || 'Invalid or expired OTP');
       }
     } catch (error) {
       console.error('Verification Error:', error);
-      showPopup('Error', 'Something went wrong. Please try again.', 'error');
+      showError('Error', 'Something went wrong. Please try again.');
     }
   };
 
@@ -217,19 +128,11 @@ export default function VerificationScreen({
           <Text style={styles.link}>Privacy Notice</Text>.
         </Text>
       </View>
-
-      <CustomPopup
-        visible={popup.visible}
-        title={popup.title}
-        message={popup.message}
-        type={popup.type}
-        onClose={closePopup}
-      />
     </View>
   );
 }
 
-const { width } = Dimensions.get('window');
+const { width: verifyWidth } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   backIcon: {
@@ -250,7 +153,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   modal: {
-    width,
+    width: verifyWidth,
     backgroundColor: '#fff',
     padding: 20,
     borderTopLeftRadius: 30,
@@ -302,66 +205,5 @@ const styles = StyleSheet.create({
   link: {
     color: '#007aff',
     fontFamily: 'Montserrat_400Regular',
-  },
-  // Popup styles
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  popupContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: width * 0.85,
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconText: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  popupTitle: {
-    fontSize: 20,
-    fontFamily: 'BebasNeue_400Regular',
-    color: '#000',
-    marginBottom: 8,
-    letterSpacing: 0.5,
-  },
-  popupMessage: {
-    fontSize: 14,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#6c6c6c',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  popupButton: {
-    backgroundColor: '#000',
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 8,
-    width: '100%',
-    alignItems: 'center',
-  },
-  popupButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Montserrat_400Regular',
-    fontWeight: '600',
   },
 });

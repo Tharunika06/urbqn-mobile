@@ -1,17 +1,21 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import { LOCATION_DATA } from '../../utils/staticData'; // Import from your static data file
 
+// ============ Types ============
 interface Location {
   id: number;
   name: string;
+  count: number;
   image: any;
 }
 
 interface TopLocationsProps {
-  locations: Location[];
+  locations?: Location[];
 }
 
-export default function TopLocations({ locations }: TopLocationsProps) {
+// ============ Component ============
+export default function TopLocations({ locations = LOCATION_DATA }: TopLocationsProps) {
   return (
     <View style={styles.section}>
       <View style={styles.header}>

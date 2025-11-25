@@ -1,51 +1,32 @@
-// Header.tsx
+// components/home/Header.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import BellIcon from '../../assets/icons/bell.png';
 import Greeting from '../../constants/Greeting';
-import { getCurrentUserId } from '../../utils/auth'; // ← ADD THIS IMPORT
+
+// Import types
+import type { UserData, ProfileData } from '../../types/index';
+
+// Import services
+import {
+  checkProfileExists,
+  fetchUserProfile,
+  fetchNotificationCount,
+} from '../../services/api.service';
+
+// Import utils
+import {
+  getCurrentUser,
+  getCurrentUserId,
+  getDisplayName,
+  getProfileImageSource,
+} from '../../utils/user.utils';
+
+import { BELL_ICON } from '../../utils/staticData';
 
 interface HeaderProps {
   userEmail: string | null;
   userName?: string | null;
-}
-
-interface UserData {
-  id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  isVerified: boolean;
-}
-
-interface ProfileData {
-  firstName?: string;
-  lastName?: string;
-  photo?: string | null;
-  email?: string;
-  _id?: string;
-  hasPhoto?: boolean;
-}
-
-interface CheckEmailResponse {
-  exists: boolean;
-  profile?: {
-    id: string;
-    name: string;
-    hasPhoto: boolean;
-  } | null;
-}
-
-interface ProfileResponse {
-  message: string;
-  profile: ProfileData;
-}
-
-interface UnreadCountResponse {
-  count: number;
 }
 
 export default function Header({ userEmail, userName }: HeaderProps) {
@@ -57,98 +38,15 @@ export default function Header({ userEmail, userName }: HeaderProps) {
   const [loading, setLoading] = useState(true);
   const [profileExists, setProfileExists] = useState<boolean | null>(null);
   const [profileCheckComplete, setProfileCheckComplete] = useState(false);
-  
-  // Notification count state
   const [notificationCount, setNotificationCount] = useState<number>(0);
-
-  const BASE_URL = "http://localhost:5000/api";
-  const NOTIFICATIONS_URL = "http://localhost:5000/api/notifications";
-
-  // Get current user from AsyncStorage
-  const getCurrentUser = async (): Promise<UserData | null> => {
-    try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        return JSON.parse(userData);
-      }
-      return null;
-    } catch (error) {
-      console.error("Error getting current user:", error);
-      return null;
-    }
-  };
-
-  // Check if profile exists for user email
-  const checkProfileExists = async (email: string): Promise<boolean> => {
-    try {
-      const checkResponse = await axios.get<CheckEmailResponse>(`${BASE_URL}/profiles/check-email/${encodeURIComponent(email)}`);
-      return checkResponse.data.exists;
-    } catch (error) {
-      console.error("Error checking profile existence:", error);
-      return false;
-    }
-  };
-
-  // Fetch user's profile data including photo
-  const fetchUserProfile = async (email: string): Promise<ProfileData | null> => {
-    try {
-      const profileResponse = await axios.get<ProfileResponse>(`${BASE_URL}/profiles/by-email/${encodeURIComponent(email)}`);
-      return profileResponse.data.profile || null;
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      return null;
-    }
-  };
-
-  // ✅ UPDATED: Fetch notification count with userId
-  const fetchNotificationCount = async () => {
-    try {
-      // Get userId first
-      const userId = await getCurrentUserId();
-      
-      if (!userId) {
-        console.warn('⚠️ No user ID found - user not logged in');
-        setNotificationCount(0);
-        return;
-      }
-
-      console.log('🔍 Fetching notification count for user:', userId);
-
-      // Pass userId to backend
-      const response = await fetch(
-        `${NOTIFICATIONS_URL}/mobile/unread-count?userId=${userId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data: UnreadCountResponse = await response.json();
-        console.log('✅ Unread count:', data.count);
-        setNotificationCount(data.count);
-      } else {
-        const errorData = await response.json();
-        console.error('❌ Failed to fetch notification count:', response.status, errorData);
-        setNotificationCount(0);
-      }
-    } catch (error) {
-      console.error("❌ Error fetching notification count:", error);
-      setNotificationCount(0);
-    }
-  };
 
   // Handle avatar click - only navigate to view profile if profile exists
   const handleAvatarClick = () => {
     if (loading) return;
     
     if (profileExists && userProfile) {
-      // Profile exists, go to view profile
       router.push('/(tabs)/ViewProfile');
     } else {
-      // No profile exists - do nothing or show a subtle indicator
       console.log('User profile not found. Avatar click ignored.');
     }
   };
@@ -158,7 +56,26 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     router.push('/auth/notifications');
   };
 
-  // Load user data and profile on component mount and focus
+  // Load notification count
+  const loadNotificationCount = async () => {
+    try {
+      const userId = await getCurrentUserId();
+      
+      if (!userId) {
+        console.warn(' No user ID found - user not logged in');
+        setNotificationCount(0);
+        return;
+      }
+
+      const count = await fetchNotificationCount(userId);
+      setNotificationCount(count);
+    } catch (error) {
+      console.error("Error loading notification count:", error);
+      setNotificationCount(0);
+    }
+  };
+
+  // Load user data and profile
   const loadUserData = async () => {
     try {
       setLoading(true);
@@ -176,26 +93,20 @@ export default function Header({ userEmail, userName }: HeaderProps) {
             if (profile) {
               setUserProfile(profile);
               setProfilePhoto(profile?.photo || null);
-              setDisplayName(profile?.firstName && profile?.lastName 
-                ? `${profile.firstName} ${profile.lastName}`
-                : userName || user.firstName || user.email || 'Guest');
+              setDisplayName(getDisplayName(profile, user, userName || 'Guest'));
             } else {
-              // Profile check returned exists but couldn't fetch - use fallback
-              setDisplayName(userName || user.firstName || user.email || 'Guest');
+              setDisplayName(getDisplayName(null, user, userName || 'Guest'));
               setProfileExists(false);
             }
           } else {
-            // No profile exists - use user data as fallback
-            setDisplayName(userName || user.firstName || user.email || 'Guest');
+            setDisplayName(getDisplayName(null, user, userName || 'Guest'));
           }
         } catch (profileError) {
           console.error("Error during profile check:", profileError);
-          // If profile check fails, continue with basic user info
-          setDisplayName(userName || user.firstName || user.email || 'Guest');
+          setDisplayName(getDisplayName(null, user, userName || 'Guest'));
           setProfileExists(false);
         }
       } else {
-        // No user logged in
         setCurrentUser(null);
         setProfileExists(false);
         setDisplayName(userName || userEmail || 'Guest');
@@ -205,7 +116,6 @@ export default function Header({ userEmail, userName }: HeaderProps) {
       setProfileCheckComplete(true);
     } catch (error) {
       console.error("Error loading user data:", error);
-      // Fallback to basic display
       setDisplayName('Guest');
       setProfileExists(false);
       setProfileCheckComplete(true);
@@ -215,49 +125,45 @@ export default function Header({ userEmail, userName }: HeaderProps) {
     }
   };
 
-  // Fetch notifications whenever the component is focused
+  // Initial load
   useEffect(() => {
     loadUserData();
-    fetchNotificationCount();
+    loadNotificationCount();
   }, [userEmail, userName]);
 
+  // Refresh on focus
   useFocusEffect(
     React.useCallback(() => {
       if (profileCheckComplete) {
         loadUserData();
-        fetchNotificationCount(); // Refresh notification count on focus
+        loadNotificationCount();
       }
     }, [profileCheckComplete])
   );
-
-  const getProfileImageSource = () => {
-    if (profilePhoto && profilePhoto.startsWith('data:image')) {
-      return { uri: profilePhoto };
-    }
-    return require('../../assets/images/avatar.png');
-  };
 
   const getAvatarStyle = () => {
     if (loading) {
       return [styles.avatar, { opacity: 0.7 }];
     }
-
-    if (profileExists && userProfile) {
-      return [styles.avatar, { borderWidth: 0 }];
-    } else {
-      return [styles.avatar, { borderWidth: 0 }];
-    }
+    return [styles.avatar, { borderWidth: 0 }];
   };
 
   return (
     <View style={styles.header}>
-      <Pressable onPress={handleAvatarClick} style={styles.avatarContainer} disabled={loading || !profileExists}>
+      <Pressable 
+        onPress={handleAvatarClick} 
+        style={styles.avatarContainer} 
+        disabled={loading || !profileExists}
+      >
         {loading ? (
           <View style={styles.avatarLoading}>
             <ActivityIndicator size="small" color="#007AFF" />
           </View>
         ) : (
-          <Image source={getProfileImageSource()} style={getAvatarStyle()} />
+          <Image 
+            source={getProfileImageSource(profilePhoto)} 
+            style={getAvatarStyle()} 
+          />
         )}
       </Pressable>
 
@@ -276,8 +182,7 @@ export default function Header({ userEmail, userName }: HeaderProps) {
       </View>
 
       <Pressable style={styles.notificationWrapper} onPress={handleNotificationClick}>
-        <Image source={BellIcon} style={styles.bellIcon} />
-        {/* Only show badge if there are unread notifications */}
+        <Image source={BELL_ICON} style={styles.bellIcon} />
         {notificationCount > 0 && (
           <View style={styles.notificationBadge}>
             <Text style={styles.badgeText}>

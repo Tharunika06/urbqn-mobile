@@ -1,4 +1,4 @@
-//ViewProfile.tsx
+// urban/app/(tabs)/ViewProfile.tsx
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -15,16 +15,31 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import * as ImagePicker from 'expo-image-picker';
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { Montserrat_400Regular } from '@expo-google-fonts/montserrat';
 import { Prompt_400Regular } from '@expo-google-fonts/prompt';
-import { LinearGradient } from 'expo-linear-gradient';
 
+// Import GradientButton component
+import GradientButton from '../../components/Button/GradientButton';
+
+// Import services and utilities
+import { 
+  checkProfileExists, 
+  fetchUserProfile, 
+  updateProfile, 
+  updateProfilePhoto 
+} from '../../services/api.service';
+import { 
+  validateName, 
+  validatePhone, 
+  validateDateOfBirth 
+} from '../../utils/validation.utils';
+import { 
+  pickAndConvertImage 
+} from '../../utils/image.utils';
+import { getUser } from '../../utils/storage.utils';
+import { removeUser } from '../../utils/user.utils';
 
 interface ProfileData {
   firstName?: string;
@@ -42,14 +57,6 @@ interface UserData {
   firstName?: string;
   lastName?: string;
   isVerified: boolean;
-}
-
-interface CheckEmailResponse {
-  exists: boolean;
-}
-
-interface ProfilesResponse {
-  profiles: ProfileData[];
 }
 
 interface ToastMessage {
@@ -136,8 +143,6 @@ export default function ViewProfile() {
     message: ''
   });
 
-  const BASE_URL = "http://localhost:5000/api";
-
   // Toast notification function
   const showToast = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     setToastData({ type, title, message });
@@ -148,29 +153,14 @@ export default function ViewProfile() {
     setToastVisible(false);
   };
 
-  // Get current user from AsyncStorage
-  const getCurrentUser = async (): Promise<UserData | null> => {
-    try {
-      const userData = await AsyncStorage.getItem('user');
-      return userData ? JSON.parse(userData) : null;
-    } catch (error) {
-      console.error("Error getting current user:", error);
-      return null;
-    }
-  };
-
   // Fetch current user's profile
   const fetchCurrentUserProfile = async (email: string): Promise<ProfileData | null> => {
     try {
-      console.log(`Fetching profile for user: ${email}`);
       
       // Check if profile exists
-      const checkResponse = await axios.get<CheckEmailResponse>(
-        `${BASE_URL}/profiles/check-email/${encodeURIComponent(email)}`
-      );
+      const exists = await checkProfileExists(email);
       
-      if (!checkResponse.data.exists) {
-        console.log('No profile found, returning empty profile');
+      if (!exists) {
         return {
           firstName: '',
           lastName: '',
@@ -182,16 +172,9 @@ export default function ViewProfile() {
         };
       }
 
-      // Get all profiles and find current user's profile
-      const profilesResponse = await axios.get<ProfilesResponse>(
-        `${BASE_URL}/profiles?includePhotos=true`
-      );
-      
-      const userProfile = profilesResponse.data.profiles?.find(
-        (p: ProfileData) => p.email?.toLowerCase() === email.toLowerCase()
-      );
-      
-      return userProfile || null;
+      // Get user profile
+      const userProfile = await fetchUserProfile(email);
+      return userProfile;
     } catch (error) {
       console.error("Error fetching user profile:", error);
       return null;
@@ -204,7 +187,7 @@ export default function ViewProfile() {
       try {
         setLoading(true);
         
-        const user = await getCurrentUser();
+        const user = await getUser();
         if (!user) {
           showToast('error', 'Authentication Required', 'Please log in to view your profile');
           setTimeout(() => router.push('/auth/LoginScreen'), 2000);
@@ -229,49 +212,20 @@ export default function ViewProfile() {
     loadUserProfile();
   }, []);
 
-  // Photo upload functionality
-  const requestPermissions = async (): Promise<boolean> => {
-    try {
-      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-      const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (!cameraPermission.granted || !mediaLibraryPermission.granted) {
-        showToast('error', 'Permissions Required', 'Camera and photo access needed');
-        return false;
-      }
-      return true;
-    } catch (error) {
-      showToast('error', 'Permission Error', 'Failed to request permissions');
-      return false;
-    }
-  };
-
-  const convertToBase64 = async (uri: string): Promise<string> => {
-    const manipulatedImage = await manipulateAsync(
-      uri,
-      [{ resize: { width: 400, height: 400 } }],
-      { compress: 0.7, format: SaveFormat.JPEG, base64: true }
-    );
-
-    if (manipulatedImage.base64) {
-      return `data:image/jpeg;base64,${manipulatedImage.base64}`;
-    }
-    throw new Error('Failed to convert image');
-  };
-
+  // Photo upload functionality using utility
   const openCamera = async () => {
-    if (!(await requestPermissions())) return;
-    
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      const base64Image = await pickAndConvertImage('camera', {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        width: 400,
+        height: 400,
+        compress: 0.7
       });
 
-      if (!result.canceled && result.assets[0]) {
-        await updateProfilePhoto(result.assets[0].uri);
+      if (base64Image) {
+        await updateProfilePhotoHandler(base64Image);
       }
     } catch (error) {
       showToast('error', 'Camera Error', 'Failed to open camera');
@@ -279,102 +233,98 @@ export default function ViewProfile() {
   };
 
   const openImagePicker = async () => {
-    if (!(await requestPermissions())) return;
-    
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      const base64Image = await pickAndConvertImage('library', {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        width: 400,
+        height: 400,
+        compress: 0.7
       });
 
-      if (!result.canceled && result.assets[0]) {
-        await updateProfilePhoto(result.assets[0].uri);
+      if (base64Image) {
+        await updateProfilePhotoHandler(base64Image);
       }
     } catch (error) {
       showToast('error', 'Photo Library Error', 'Failed to open photo library');
     }
   };
 
-  const updateProfilePhoto = async (imageUri: string) => {
+  const updateProfilePhotoHandler = async (base64Image: string) => {
     try {
       setUploadingPhoto(true);
-      const base64Image = await convertToBase64(imageUri);
       
       // Update local state
       setProfile(prev => ({ ...prev, photo: base64Image }));
       
       // Update on server
-      await axios.patch(
-        `${BASE_URL}/profiles/by-email/${encodeURIComponent(profile?.email!)}/photo`,
-        { photo: base64Image },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
-      );
+      const result = await updateProfilePhoto(profile?.email!, base64Image);
 
-      showToast('success', 'Success', 'Profile picture updated!');
-      setOriginalProfile(prev => ({ ...prev, photo: base64Image }));
+      if (result.success) {
+        showToast('success', 'Success', 'Profile picture updated!');
+        setOriginalProfile(prev => ({ ...prev, photo: base64Image }));
+      } else {
+        // Revert on failure
+        setProfile(prev => ({ ...prev, photo: originalProfile?.photo || null }));
+        showToast('error', 'Upload Failed', result.error || 'Failed to update photo');
+      }
       
     } catch (error: unknown) {
       console.error('Photo update error:', error);
       setProfile(prev => ({ ...prev, photo: originalProfile?.photo || null }));
-      
-      const axiosError = error as any;
-      if (axiosError?.response || axiosError?.request || axiosError?.code) {
-        if (axiosError.code === 'ECONNABORTED') {
-          showToast('error', 'Timeout', 'Photo upload timed out');
-        } else if (axiosError.response) {
-          showToast('error', 'Server Error', 'Failed to update photo');
-        } else if (axiosError.request) {
-          showToast('error', 'Network Error', 'No server response');
-        } else {
-          showToast('error', 'Upload Error', 'Failed to upload photo');
-        }
-      } else {
-        showToast('error', 'Error', 'Failed to update photo');
-      }
+      showToast('error', 'Error', 'Failed to update photo');
     } finally {
       setUploadingPhoto(false);
     }
   };
 
-  // Profile validation
-  const validateProfile = (profileData: ProfileData): boolean => {
-    const required = [
-      { field: profileData.firstName?.trim(), name: 'First name' },
-      { field: profileData.lastName?.trim(), name: 'Last name' },
-      { field: profileData.phone?.trim(), name: 'Phone number' },
-      { field: profileData.gender?.trim(), name: 'Gender' },
-      { field: profileData.dob?.trim(), name: 'Date of birth' },
-    ];
+  // Profile validation using utilities
+  const validateProfileData = (profileData: ProfileData): boolean => {
+    // First Name validation
+    const firstNameValidation = validateName(profileData.firstName || '', 'First name');
+    if (!firstNameValidation.valid) {
+      showToast('error', 'Validation Error', firstNameValidation.error!);
+      return false;
+    }
 
-    for (const { field, name } of required) {
-      if (!field) {
-        showToast('error', 'Validation Error', `${name} is required`);
+    // Last Name validation
+    const lastNameValidation = validateName(profileData.lastName || '', 'Last name');
+    if (!lastNameValidation.valid) {
+      showToast('error', 'Validation Error', lastNameValidation.error!);
+      return false;
+    }
+
+    // Phone validation if provided
+    if (profileData.phone) {
+      const phoneValidation = validatePhone(profileData.phone);
+      if (!phoneValidation.valid) {
+        showToast('error', 'Invalid Phone', phoneValidation.error!);
         return false;
       }
     }
 
-    // Additional validation for DOB format
-    const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (profileData.dob && !dobRegex.test(profileData.dob.trim())) {
-      showToast('error', 'Invalid Date', 'Use format: YYYY-MM-DD');
-      return false;
+    // DOB validation if provided
+    if (profileData.dob) {
+      const dobValidation = validateDateOfBirth(profileData.dob);
+      if (!dobValidation.valid) {
+        showToast('error', 'Invalid Date', dobValidation.error!);
+        return false;
+      }
     }
 
-    // Phone number validation
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (profileData.phone && !phoneRegex.test(profileData.phone.replace(/\s/g, ''))) {
-      showToast('error', 'Invalid Phone', 'Enter a valid phone number');
+    // Gender validation
+    if (!profileData.gender?.trim()) {
+      showToast('error', 'Validation Error', 'Gender is required');
       return false;
     }
 
     return true;
   };
 
-  // Save profile changes
+  // Save profile changes using API service
   const handleSave = async () => {
-    if (!profile || !validateProfile(profile)) return;
+    if (!profile || !validateProfileData(profile)) return;
 
     try {
       setSaving(true);
@@ -389,42 +339,19 @@ export default function ViewProfile() {
         photo: profile.photo,
       };
 
-      await axios.put(
-        `${BASE_URL}/profiles/by-email/${encodeURIComponent(updatedProfile.email!)}`,
-        updatedProfile,
-        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
-      );
+      const result = await updateProfile(updatedProfile.email!, updatedProfile);
 
-      showToast('success', 'Success', 'Profile updated successfully!');
-      setOriginalProfile({ ...updatedProfile });
-      setIsEditing(false);
+      if (result.success) {
+        showToast('success', 'Success', 'Profile updated successfully!');
+        setOriginalProfile({ ...updatedProfile });
+        setIsEditing(false);
+      } else {
+        showToast('error', 'Update Failed', result.error || 'Failed to update profile');
+      }
       
     } catch (error: unknown) {
       console.error("Profile update error:", error);
-      
-      const axiosError = error as any;
-      if (axiosError?.response || axiosError?.request || axiosError?.code) {
-        if (axiosError.code === 'ECONNABORTED') {
-          showToast('error', 'Timeout', 'Request timed out');
-        } else if (axiosError.response) {
-          const status = axiosError.response.status;
-          if (status === 400) {
-            showToast('error', 'Invalid Data', 'Check your input');
-          } else if (status === 404) {
-            showToast('error', 'Not Found', 'Profile not found');
-          } else if (status === 500) {
-            showToast('error', 'Server Error', 'Try again later');
-          } else {
-            showToast('error', 'Update Failed', `Server error: ${status}`);
-          }
-        } else if (axiosError.request) {
-          showToast('error', 'Network Error', 'Check your connection');
-        } else {
-          showToast('error', 'Error', 'Unexpected error occurred');
-        }
-      } else {
-        showToast('error', 'Error', 'Failed to update profile');
-      }
+      showToast('error', 'Error', 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -456,14 +383,18 @@ export default function ViewProfile() {
     setShowCancelDialog(false);
   };
 
-  // Logout functionality
+  // Logout functionality using storage utility
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('user');
-      showToast('success', 'Logged Out', 'You have been logged out successfully');
-      setTimeout(() => {
-        router.push('/auth/LoginScreen');
-      }, 1000);
+      const success = await removeUser();
+      if (success) {
+        showToast('success', 'Logged Out', 'You have been logged out successfully');
+        setTimeout(() => {
+          router.push('/auth/LoginScreen');
+        }, 1000);
+      } else {
+        showToast('error', 'Logout Failed', 'Failed to logout. Please try again.');
+      }
     } catch (error) {
       console.error('Logout error:', error);
       showToast('error', 'Logout Failed', 'Failed to logout. Please try again.');
@@ -634,21 +565,20 @@ export default function ViewProfile() {
             </Pressable>
           )}
 
-          {/* Logout Button */}
-          <Pressable 
-            onPress={handleLogout} 
-            style={styles.logoutButtonWrapper}
-          >
-            <LinearGradient
+          {/* Logout Button using GradientButton */}
+          <View style={styles.logoutButtonWrapper}>
+            <GradientButton
+              onPress={handleLogout}
+              label={
+                <View style={styles.logoutButtonContent}>
+                  <Icon name="sign-out" size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.logoutButtonContent}>Logout</Text>
+                </View>
+              }
               colors={['#474747', '#000000']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.logoutButton}
-            >
-              <Icon name="sign-out" size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            </LinearGradient>
-          </Pressable>
+              buttonStyle={styles.gradientButton}
+            />
+          </View>
         </View>
       </ScrollView>
 
@@ -806,7 +736,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Toast styles
   toastContainer: {
     position: 'absolute',
     top: 0,
@@ -839,7 +768,6 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 14,
   },
-  // Dialog styles
   dialogOverlay: {
     position: 'absolute',
     top: 0,
@@ -894,24 +822,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  // Logout button styles
   logoutButtonWrapper: {
     marginTop: 30,
     marginBottom: 20,
     alignItems: 'center',
   },
-  logoutButton: {
+  gradientButton: {
+    width: '100%',
+    maxWidth: 350,
+    height: 55,
+  },
+  logoutButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 8,
-    minWidth: 200,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

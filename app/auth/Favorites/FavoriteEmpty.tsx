@@ -51,18 +51,13 @@ const styles = StyleSheet.create({
     zIndex: 10,
     padding: 8,
   },
-//   image: {
-//     width: 380,
-//     height: 460,
-// marginTop: 40,
-//     marginBottom: 5,
-//   },
+
   title: {
     fontSize: 30,
     textAlign: 'center',
     color: '#1e1e1e',
     lineHeight: 42,
-    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+    fontFamily: 'BebasNeue_400Regular', //  Applied Bebas Neue font
   },
   progressBar: {
     flexDirection: 'row',
@@ -90,7 +85,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+    fontFamily: 'SFPro', // Applied SF Pro font
   },
   container: {
     flex: 1,

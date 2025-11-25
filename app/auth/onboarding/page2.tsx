@@ -94,7 +94,7 @@ marginTop: 40,
     textAlign: 'center',
     color: '#1e1e1e',
     lineHeight: 42,
-    fontFamily: 'BebasNeue_400Regular', // ✅ Applied Bebas Neue font
+    fontFamily: 'BebasNeue_400Regular', // Applied Bebas Neue font
   },
   progressBar: {
     flexDirection: 'row',
@@ -122,6 +122,6 @@ marginTop: 40,
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    fontFamily: 'SFPro', // ✅ Applied SF Pro font
+    fontFamily: 'SFPro', //  Applied SF Pro font
   },
 });

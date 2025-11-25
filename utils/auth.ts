@@ -55,7 +55,7 @@ export const isLoggedIn = async (): Promise<boolean> => {
 export const logout = async (): Promise<void> => {
   try {
     await AsyncStorage.multiRemove(['authToken', 'user', 'userCredentials']);
-    console.log('✅ User logged out successfully');
+    console.log(' User logged out successfully');
   } catch (error) {
     console.error('Error during logout:', error);
   }

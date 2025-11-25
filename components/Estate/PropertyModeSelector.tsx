@@ -1,6 +1,7 @@
+// urban/components/Estate/PropertyModeSelector.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import GradientButton from '@/components/Button/GradientButton';
 
 interface PropertyModeSelectorProps {
   displayMode: 'rent' | 'sale' | null;
@@ -16,45 +17,43 @@ export default function PropertyModeSelector({ displayMode, setDisplayMode }: Pr
   return (
     <View style={styles.rentBuyRow}>
       <View style={styles.leftButtons}>
-        <Pressable
-          style={styles.buttonContainer}
-          onPress={() => setDisplayMode('rent')}
-        >
-          {displayMode === 'rent' ? (
-            <LinearGradient
-              colors={['#0075FF', '#4C9FFF']}
-              start={{ x: 0, y: 1 }}
-              end={{ x: 0, y: 0 }}
-              style={styles.rentBtn}
-            >
-              <Text style={styles.activeStatusText}>Rent</Text>
-            </LinearGradient>
-          ) : (
-            <View style={[styles.rentBtn, styles.inactiveStatusBtn]}>
+        {displayMode === 'rent' ? (
+          <GradientButton
+            onPress={() => setDisplayMode('rent')}
+            label="Rent"
+            colors={['#0075FF', '#4C9FFF']}
+            buttonStyle={styles.activeBtn}
+            textStyle={styles.activeStatusText}
+          />
+        ) : (
+          <Pressable
+            style={styles.buttonContainer}
+            onPress={() => setDisplayMode('rent')}
+          >
+            <View style={[styles.inactiveBtn, styles.inactiveStatusBtn]}>
               <Text style={styles.inactiveStatusText}>Rent</Text>
             </View>
-          )}
-        </Pressable>
+          </Pressable>
+        )}
 
-        <Pressable
-          style={styles.buttonContainer}
-          onPress={() => setDisplayMode('sale')}
-        >
-          {displayMode === 'sale' ? (
-            <LinearGradient
-              colors={['#0075FF', '#4C9FFF']}
-              start={{ x: 0, y: 1 }}
-              end={{ x: 0, y: 0 }}
-              style={styles.buyBtn}
-            >
-              <Text style={styles.activeStatusText}>Buy</Text>
-            </LinearGradient>
-          ) : (
-            <View style={[styles.buyBtn, styles.inactiveStatusBtn]}>
+        {displayMode === 'sale' ? (
+          <GradientButton
+            onPress={() => setDisplayMode('sale')}
+            label="Buy"
+            colors={['#0075FF', '#4C9FFF']}
+            buttonStyle={styles.activeBtn}
+            textStyle={styles.activeStatusText}
+          />
+        ) : (
+          <Pressable
+            style={styles.buttonContainer}
+            onPress={() => setDisplayMode('sale')}
+          >
+            <View style={[styles.inactiveBtn, styles.inactiveStatusBtn]}>
               <Text style={styles.inactiveStatusText}>Buy</Text>
             </View>
-          )}
-        </Pressable>
+          </Pressable>
+        )}
       </View>
       <Pressable>
         <Image source={require('../../assets/icons/360.png')} style={styles.circleImage} />
@@ -77,16 +76,17 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     borderRadius: 10,
-    overflow: 'hidden', // Important for gradient border radius
+    overflow: 'hidden',
   },
-  rentBtn: { 
+  activeBtn: {
+    width: 'auto',
+    height: 'auto',
     paddingVertical: 10, 
     paddingHorizontal: 20, 
-    borderRadius: 10, 
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 10,
+    marginBottom: 0,
   },
-  buyBtn: { 
+  inactiveBtn: { 
     paddingVertical: 10, 
     paddingHorizontal: 20, 
     borderRadius: 10, 
@@ -99,12 +99,14 @@ const styles = StyleSheet.create({
   activeStatusText: { 
     color: '#fff', 
     fontWeight: '600', 
-    fontFamily: 'Montserrat_600SemiBold' 
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 14,
   },
   inactiveStatusText: { 
     color: '#1a2238', 
     fontWeight: '600', 
-    fontFamily: 'Montserrat_600SemiBold' 
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 14,
   },
   circleImage: { 
     width: 44, 

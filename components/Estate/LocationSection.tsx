@@ -34,7 +34,7 @@ export default function LocationSection({
             <Text style={[textStyle, styles.addressText]}>{address}</Text>
           </View>
           
-          {/* ✅ Dynamic Distance Box */}
+          {/*  Dynamic Distance Box */}
           <Pressable style={styles.distanceBox} onPress={handleViewOnMap}>
             <Ionicons name="location" size={16} color="#f24e6f" />
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>

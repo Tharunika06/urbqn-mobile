@@ -9,23 +9,14 @@ import { RootStackParamList } from '../../types/navigation';
 import GradientButton from '../../components/Button/GradientButton';
 import { useFavorites } from '../../components/context/FavoriteContext';
 import Footer from '../../components/Footer';
-
-type Property = {
-  id?: string | number;
-  _id?: string;
-  name: string;
-  price?: string;
-  status?: 'rent' | 'sale' | 'both'; 
-  rentPrice?: string;
-  salePrice?: string;
-  photo: string | any;
-  rating: number;
-  country: string;
-  facility: string[];
-  ownerId: string;
-  ownerName: string;
-  address: string;
-};
+import { fetchProperties } from '../../services/api.service';
+import { 
+  getImageSource, 
+  renderPriceLabel, 
+  getPropertyId,
+  searchProperties as searchPropertiesUtil 
+} from '../../utils/property.utils';
+import type { Property } from '../../types/index';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -40,60 +31,26 @@ export default function SearchScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProperties();
+    loadProperties();
   }, []);
 
-  const fetchProperties = async () => {
+  const loadProperties = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      console.log('🔄 Fetching properties');
-      const response = await fetch('http://localhost:5000/api/property');
+      const properties = await fetchProperties();
       
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('📦 Raw API response:', JSON.stringify(data, null, 2));
-      
-      let properties: Property[] = [];
-      
-      if (Array.isArray(data)) {
-        properties = data;
-        console.log('✅ Data is array, using directly');
-      } else if (data.properties && Array.isArray(data.properties)) {
-        properties = data.properties;
-        console.log('✅ Using data.properties array');
-      } else if (data.data && Array.isArray(data.data)) {
-        properties = data.data;
-        console.log('✅ Using data.data array');
-      } else {
-        console.warn('⚠️ Unexpected API response format:', data);
-        properties = [];
-      }
-      
-      console.log('✅ Fetched properties count:', properties.length);
       if (properties.length > 0) {
-        console.log('📝 First property:', JSON.stringify(properties[0], null, 2));
-        console.log('📝 First property name:', properties[0].name);
-      } else {
-        console.warn('⚠️ No properties found in response');
       }
       
       setAllProperties(properties);
     } catch (error) {
-      console.error('❌ Error fetching properties:', error);
-      console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
-      setError(error instanceof Error ? error.message : 'Failed to load properties');
+      console.error('Error loading properties:', error);
+      setError('Failed to load properties');
       setAllProperties([]);
     } finally {
       setIsLoading(false);
-      console.log('🏁 Fetch complete, isLoading set to false');
     }
   };
 
@@ -105,76 +62,15 @@ export default function SearchScreen() {
       return;
     }
 
-    const searchLower = query.toLowerCase().trim();
-    console.log('🔍 Searching for:', searchLower);
-    console.log('📊 Total properties to search:', allProperties.length);
-
-    const filtered = allProperties.filter(property => {
-      const nameMatch = property.name?.toLowerCase().includes(searchLower) ?? false;
-      const locationMatch = property.country?.toLowerCase().includes(searchLower) ?? false;
-      const addressMatch = property.address?.toLowerCase().includes(searchLower) ?? false;
-      
-      const facilityMatch = Array.isArray(property.facility) 
-        ? property.facility.some(f => f?.toLowerCase().includes(searchLower))
-        : false;
-      
-      const priceMatch = 
-        property.price?.toString().includes(query) ||
-        property.rentPrice?.toString().includes(query) ||
-        property.salePrice?.toString().includes(query);
-
-      const ownerMatch = property.ownerName?.toLowerCase().includes(searchLower) ?? false;
-
-      return nameMatch || locationMatch || addressMatch || facilityMatch || priceMatch || ownerMatch;
-    });
-    
-    console.log('✅ Filtered results:', filtered.length);
-    setSearchResults(filtered);
-  };
-
-  const getImageSrc = (photo: string | any) => {
-    if (photo && typeof photo === 'string' && photo.startsWith('data:image/')) {
-      return { uri: photo };
-    }
-    if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://localhost:5000${photo}` };
-    }
-    if (photo && typeof photo === 'string' && photo.startsWith('http')) {
-      return { uri: photo };
-    }
-    if (photo && typeof photo === 'object') {
-      return photo;
-    }
-    return require('../../assets/images/placeholder.png');
-  };
-
-  const renderPriceLabel = (property: Property) => {
-    const status = property.status?.toLowerCase();
-
-    if (status === 'both' && property.rentPrice && property.salePrice) {
-      return <Text style={styles.priceText}>₹{property.salePrice}</Text>;
-    }
-    if (status === 'rent' && property.rentPrice) {
-      return (
-        <Text style={styles.priceText}>
-          ₹{property.rentPrice}
-          <Text style={styles.priceUnit}> /month</Text>
-        </Text>
-      );
-    }
-    if (status === 'sale' && property.salePrice) {
-      return <Text style={styles.priceText}>₹{property.salePrice}</Text>;
-    }
-    if (property.price) {
-      return <Text style={styles.priceText}>₹{property.price}</Text>;
-    }
-    return <Text style={styles.priceText}>N/A</Text>;
+    const results = searchPropertiesUtil(allProperties, query);
+    setSearchResults(results);
   };
 
   const renderPropertyCard = ({ item: property, index }: { item: Property; index: number }) => {
-    const safeId = property.id ?? property._id ?? index;
+    const safeId = getPropertyId(property, index);
     const isFavorited = favorites.includes(safeId);
-    const imageSource = getImageSrc(property.photo);
+    const imageSource = getImageSource(property.photo);
+    const priceLabel = renderPriceLabel(property);
 
     return (
       <Pressable
@@ -184,10 +80,15 @@ export default function SearchScreen() {
             property: {
               ...property,
               _id: safeId,
-              location: property.country,
+              name: property.name || property.title || 'Unnamed Property',  //  FIXED
+              location: property.country || property.city || '',  // FIXED
               price: property.price || property.salePrice || property.rentPrice,
               rating: property.rating || 4.9,
               facility: property.facility || [],
+              ownerId: property.ownerId || property._id || safeId,  //  FIXED
+              ownerName: property.ownerName || 'Owner',  // FIXED
+              address: property.address || '',  //  FIXED
+              photo: property.photo,
             },
           });
         }}
@@ -211,7 +112,12 @@ export default function SearchScreen() {
             <GradientButton
               onPress={() => {}}
               colors={['#0075FF', '#4C9FFF']}
-              label={renderPriceLabel(property)}
+              label={
+                <Text style={styles.priceText}>
+                  {priceLabel.text}
+                  {priceLabel.unit && <Text style={styles.priceUnit}>{priceLabel.unit}</Text>}
+                </Text>
+              }
               buttonStyle={{
                 width: 'auto',
                 minWidth: 90,
@@ -226,14 +132,14 @@ export default function SearchScreen() {
             />
           </View>
         </View>
-        <Text style={styles.propertyTitle} numberOfLines={1}>{property.name}</Text>
+        <Text style={styles.propertyTitle} numberOfLines={1}>{property.name || property.title}</Text>
         <Text style={styles.propertyMeta}>
           <Text>
             <Text style={{ color: '#ffc107' }}>★ </Text>
             <Text style={{ color: '#53587A' }}>{property.rating || '4.9'}</Text>
           </Text>
           <Ionicons name="location-sharp" size={12} color="#858585" style={{ marginLeft: 8 }} />
-          <Text style={styles.locationText}> {property.country}</Text>
+          <Text style={styles.locationText}> {property.country || property.city}</Text>
         </Text>
       </Pressable>
     );
@@ -243,7 +149,6 @@ export default function SearchScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
-      {/* Header with Search Bar */}
       <View style={styles.header}>
         <View style={styles.searchBar}>
           <Image source={require('../../assets/icons/search-icon.png')} style={styles.icon} />
@@ -263,7 +168,6 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      {/* Results Container */}
       <View style={styles.resultsContainer}>
         {isLoading ? (
           <View style={styles.emptyState}>
@@ -275,7 +179,7 @@ export default function SearchScreen() {
             <Text style={styles.emptyText}>Error loading properties</Text>
             <Text style={styles.emptySubtext}>{error}</Text>
             <Pressable 
-              onPress={fetchProperties}
+              onPress={loadProperties}
               style={styles.retryButton}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
@@ -291,11 +195,6 @@ export default function SearchScreen() {
             {allProperties.length > 0 && (
               <Text style={[styles.emptySubtext, { marginTop: 8, color: '#666' }]}>
                 {allProperties.length} properties available
-              </Text>
-            )}
-            {allProperties.length === 0 && (
-              <Text style={[styles.emptySubtext, { marginTop: 8, color: '#ef4444' }]}>
-                No properties loaded from server
               </Text>
             )}
           </View>
@@ -315,7 +214,7 @@ export default function SearchScreen() {
             <FlatList
               data={searchResults}
               renderItem={renderPropertyCard}
-              keyExtractor={(item, index) => `${item.id || item._id || index}`}
+              keyExtractor={(item, index) => `${getPropertyId(item, index)}`}
               numColumns={2}
               columnWrapperStyle={styles.row}
               contentContainerStyle={styles.listContent}
@@ -325,7 +224,6 @@ export default function SearchScreen() {
         )}
       </View>
 
-      {/* Footer */}
       <Footer />
     </SafeAreaView>
   );

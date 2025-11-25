@@ -1,39 +1,21 @@
-// urban/components/home/FeaturedSection.tsx
+// components/home/FeaturedSection.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
-
-interface Property {
-  id?: string | number;
-  _id?: string;
-  name: string;
-  price?: string;
-  status?: 'rent' | 'sale' | 'both';
-  rentPrice?: string;
-  salePrice?: string;
-  photo: string | any;
-  rating: number;
-  country: string;
-  facility?: string[];
-  ownerId?: string;
-  ownerName?: string;
-  address?: string;
-}
-
-interface FeaturedSectionProps {
-  apiUrl?: string;
-  limit?: number;
-}
+import { Property } from '../../types/index';
+import { fetchFeaturedProperties } from '../../services/api.service';
+import { getImageSource, renderPrice, getPropertyId, formatPropertyForNavigation } from '../../utils/property.utils';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function FeaturedSection({ 
-  apiUrl = 'http://localhost:5000/api',
-  limit = 10 
-}: FeaturedSectionProps) {
+interface FeaturedSectionProps {
+  limit?: number;
+}
+
+export default function FeaturedSection({ limit = 10 }: FeaturedSectionProps) {
   const navigation = useNavigation<NavigationProp>();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,103 +23,28 @@ export default function FeaturedSection({
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    fetchFeaturedProperties();
+    loadProperties();
   }, []);
 
-  const getImageSrc = (photo: string | any) => {
-    if (photo && typeof photo === 'string' && photo.startsWith('data:image/')) {
-      return { uri: photo };
-    }
-    if (photo && typeof photo === 'string' && photo.startsWith('/uploads/')) {
-      return { uri: `http://localhost:5000${photo}` };
-    }
-    if (photo && typeof photo === 'string' && photo.startsWith('http')) {
-      return { uri: photo };
-    }
-    if (photo && typeof photo === 'object') {
-      return photo;
-    }
-    return require('../../assets/images/placeholder.png');
+  const loadProperties = async () => {
+    setLoading(true);
+    setError(null);
+    const result = await fetchFeaturedProperties(limit);
+    setProperties(result.properties);
+    setError(result.error);
+    setLoading(false);
   };
 
-  const renderPrice = (property: Property) => {
-    const status = property.status?.toLowerCase();
-
-    if (status === 'both' && property.salePrice) {
-      return { amount: `₹${property.salePrice}`, unit: '' };
-    }
-    if (status === 'rent' && property.rentPrice) {
-      return { amount: `₹${property.rentPrice}`, unit: '/month' };
-    }
-    if (status === 'sale' && property.salePrice) {
-      return { amount: `₹${property.salePrice}`, unit: '' };
-    }
-    if (property.price) {
-      const parts = property.price.split('/');
-      return {
-        amount: parts[0].startsWith('₹') ? parts[0] : `₹${parts[0]}`,
-        unit: parts[1] ? `/${parts[1]}` : ''
-      };
-    }
-    return { amount: 'N/A', unit: '' };
-  };
-
-  const fetchFeaturedProperties = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const url = `${apiUrl}/favorites/popular/${limit}`;
-      console.log('Fetching featured properties from:', url);
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      console.log('Featured API Response:', JSON.stringify(data, null, 2));
-
-      if (data.success && data.properties) {
-        const propertiesList = data.properties.map((item: any) => 
-          item.property || item
-        );
-        setProperties(propertiesList);
-        console.log(`Loaded ${propertiesList.length} featured properties`);
-      } else {
-        setError(data.message || 'Failed to load featured properties');
-      }
-    } catch (err) {
-      console.error('Error fetching featured properties:', err);
-      setError('Unable to load featured properties. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSeeAll = () => {
-    setShowAll(!showAll);
-  };
+  const handleSeeAll = () => setShowAll(!showAll);
 
   const handlePropertyPress = (property: Property, index: number) => {
-    const safeId = property.id ?? property._id ?? index;
-    
     navigation.navigate('auth/Estate/EstateDetails', {
-      property: {
-        ...property,
-        _id: safeId,
-        location: property.country,
-        price: property.price || property.salePrice || property.rentPrice,
-        rating: property.rating || 4.9,
-        facility: property.facility || [],
-        ownerId: property.ownerId || '',
-        ownerName: property.ownerName || '',
-        address: property.address || '',
-      },
+      property: formatPropertyForNavigation(property, index),
     });
   };
 
   const getDisplayProperties = () => {
-    if (properties.length <= 2) {
-      return properties;
-    }
+    if (properties.length <= 2) return properties;
     return showAll ? properties : properties.slice(0, 2);
   };
 
@@ -156,7 +63,7 @@ export default function FeaturedSection({
         <View style={styles.centerContainer}>
           <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={fetchFeaturedProperties} style={styles.retryBtn}>
+          <Pressable onPress={loadProperties} style={styles.retryBtn}>
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
         </View>
@@ -177,8 +84,8 @@ export default function FeaturedSection({
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {displayProperties.map((property, index) => {
-          const safeId = property.id ?? property._id ?? index;
-          const imageSource = getImageSrc(property.photo);
+          const safeId = getPropertyId(property, index);
+          const imageSource = getImageSource(property.photo);
           const priceDisplay = renderPrice(property);
 
           return (
@@ -190,9 +97,7 @@ export default function FeaturedSection({
               <Image 
                 source={imageSource} 
                 style={styles.image}
-                onError={() => {
-                  console.warn('Failed to load featured image for:', property.name);
-                }}
+                onError={() => console.warn('Failed to load featured image for:', property.name)}
                 defaultSource={require('../../assets/images/placeholder.png')}
               />
               <View style={styles.ratingBadge}>
@@ -207,9 +112,7 @@ export default function FeaturedSection({
                 </Text>
                 <Text style={styles.price}>
                   <Text style={styles.priceAmount}>{priceDisplay.amount}</Text>
-                  {priceDisplay.unit && (
-                    <Text style={styles.priceUnit}> {priceDisplay.unit}</Text>
-                  )}
+                  {priceDisplay.unit && <Text style={styles.priceUnit}> {priceDisplay.unit}</Text>}
                 </Text>
               </View>
             </Pressable>
@@ -225,9 +128,7 @@ export default function FeaturedSection({
         <Text style={styles.title}>Featured</Text>
         {properties.length > 2 && (
           <Pressable onPress={handleSeeAll}>
-            <Text style={styles.seeAll}>
-              {showAll ? 'Show Less' : 'See All'}
-            </Text>
+            <Text style={styles.seeAll}>{showAll ? 'Show Less' : 'See All'}</Text>
           </Pressable>
         )}
       </View>
@@ -238,116 +139,23 @@ export default function FeaturedSection({
 
 const styles = StyleSheet.create({
   section: { marginBottom: 24 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  title: {
-    fontWeight: '600',
-    fontSize: 18,
-    fontFamily: 'Montserrat_700Bold',
-  },
-  seeAll: {
-    color: '#1a73e8',
-    fontSize: 13,
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-  centerContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#858585',
-    fontSize: 14,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  errorText: {
-    marginTop: 12,
-    color: '#ef4444',
-    fontSize: 14,
-    textAlign: 'center',
-    fontFamily: 'Montserrat_400Regular',
-  },
-  emptyText: {
-    marginTop: 12,
-    color: '#858585',
-    fontSize: 14,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  retryBtn: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    backgroundColor: '#1a73e8',
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-  card: {
-    width: 220,
-    height: 300,
-    marginRight: 16,
-    borderRadius: 24,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-  },
-  ratingBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#fff',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 14,
-    elevation: 2,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#4C9FFF',
-    fontWeight: '600',
-    fontFamily: 'Montserrat_400Regular',
-  },
-  overlay: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-    padding: 12,
-    backgroundColor: '#00000032',
-  },
-  propertyTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Montserrat_700Bold',
-  },
-  location: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  price: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-  priceAmount: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-  priceUnit: {
-    fontSize: 13,
-    color: '#f1f1f1',
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  title: { fontWeight: '600', fontSize: 18, fontFamily: 'Montserrat_700Bold' },
+  seeAll: { color: '#1a73e8', fontSize: 13, fontFamily: 'Montserrat_600SemiBold' },
+  centerContainer: { paddingVertical: 60, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: 12, color: '#858585', fontSize: 14, fontFamily: 'Montserrat_400Regular' },
+  errorText: { marginTop: 12, color: '#ef4444', fontSize: 14, textAlign: 'center', fontFamily: 'Montserrat_400Regular' },
+  emptyText: { marginTop: 12, color: '#858585', fontSize: 14, fontFamily: 'Montserrat_400Regular' },
+  retryBtn: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: '#1a73e8', borderRadius: 8 },
+  retryText: { color: '#fff', fontSize: 14, fontFamily: 'Montserrat_600SemiBold' },
+  card: { width: 220, height: 300, marginRight: 16, borderRadius: 24, overflow: 'hidden', position: 'relative' },
+  image: { width: '100%', height: '100%', position: 'absolute' },
+  ratingBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: '#fff', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 14, elevation: 2 },
+  ratingText: { fontSize: 12, color: '#4C9FFF', fontWeight: '600', fontFamily: 'Montserrat_400Regular' },
+  overlay: { position: 'absolute', bottom: 0, width: '100%', padding: 12, backgroundColor: '#00000032' },
+  propertyTitle: { color: '#fff', fontSize: 14, fontWeight: '600', fontFamily: 'Montserrat_700Bold' },
+  location: { color: '#FFFFFF', fontSize: 10, fontFamily: 'Montserrat_400Regular' },
+  price: { color: '#fff', fontSize: 14, fontFamily: 'Montserrat_600SemiBold' },
+  priceAmount: { fontSize: 16, color: '#fff', fontFamily: 'Montserrat_600SemiBold' },
+  priceUnit: { fontSize: 13, color: '#f1f1f1' },
 });

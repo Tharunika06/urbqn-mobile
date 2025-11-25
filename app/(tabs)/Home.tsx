@@ -1,7 +1,12 @@
+// app/(tabs)/Home.tsx
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, StatusBar, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Types
+import type { Property } from '../../types/index';
+
+// Components
 import Header from '../../components/home/Header';
 import SearchBar from '../../components/home/SearchBar';
 import FilterTabs from '../../components/home/FilterTabs';
@@ -12,46 +17,45 @@ import TopEstateOwners from '../../components/home/TopOwners';
 import TopEstateGrid from '../../components/home/TopEstateGrid';
 import Footer from '../../components/Footer';
 
+// Services
+import { fetchProperties } from '../../services/api.service';
+
+// Utils
+import { getCurrentUser } from '../../utils/user.utils';
+import { 
+  getFeaturedProperties, 
+  getPopularProperties, 
+  getTopProperties 
+} from '../../utils/property.utils';
+import { LOCATION_DATA } from '../../utils/staticData'; 
+
 export default function Home() {
-  const [favorites, setFavorites] = useState<(string | number)[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [allProperties, setAllProperties] = useState([]);
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const toggleFavorite = (id: string | number) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((fav) => fav !== id) : [...prev, id]
-    );
-  };
-
+  // Load user on mount
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const userData = await AsyncStorage.getItem('user');
-        if (userData) {
-          const user = JSON.parse(userData);
+        const user = await getCurrentUser();
+        if (user) {
           setUserEmail(user.email);
         }
       } catch (err) {
-        console.error('Failed to load user from AsyncStorage:', err);
+        console.error('Failed to load user:', err);
       }
     };
     loadUser();
   }, []);
 
+  // Fetch properties when filter changes
   useEffect(() => {
-    const fetchFilteredProperties = async () => {
+    const loadProperties = async () => {
       try {
         setLoading(true);
-        const baseURL = 'http://localhost:5000/api/property';
-        const url =
-          activeFilter === 'All'
-            ? baseURL
-            : `${baseURL}/category/${activeFilter}`;
-
-        const res = await fetch(url);
-        const data = await res.json();
+        const data = await fetchProperties(activeFilter);
         setAllProperties(data);
       } catch (err) {
         console.error('Failed to fetch filtered properties:', err);
@@ -60,29 +64,13 @@ export default function Home() {
       }
     };
 
-    fetchFilteredProperties();
+    loadProperties();
   }, [activeFilter]);
 
-  // Filter properties by category for different sections
-  const getPropertiesByCategory = (category?: string) => {
-    if (activeFilter === 'All') {
-      return category 
-        ? allProperties.filter((prop: any) => prop.category === category)
-        : allProperties;
-    }
-    return allProperties;
-  };
-
-  // Get featured properties (first 2 from filtered results)
-  const featuredProperties = allProperties.slice(0, 2);
-
-  // Get popular properties (properties with high ratings)
-  const popularProperties = allProperties
-    .filter((prop: any) => prop.rating >= 4.5)
-    .slice(0, 4);
-
-  // Get top properties for grid
-  const topProperties = allProperties.slice(0, 10);
+  // Compute derived data using utility functions
+  const featuredProperties = getFeaturedProperties(allProperties, 2);
+  const popularProperties = getPopularProperties(allProperties, 4.5, 4);
+  const topProperties = getTopProperties(allProperties, 10);
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -109,41 +97,16 @@ export default function Home() {
           </View>
         ) : (
           <>
-            {/* Featured Section - Show only if there are featured properties */}
-            {featuredProperties.length > 0 && (
-              <FeaturedSection/>
-            )}
-
-            {/* Popular Section - Show only if there are popular properties */}
-            {popularProperties.length > 0 && (
-              <PopularSection
-                favorites={favorites}
-                toggleFavorite={toggleFavorite}
-              />
-            )}
-
-            {/* Top Locations - Show only when filter is 'All' */}
-            {activeFilter === 'All' && (
-              <TopLocations
-                locations={[
-                  { id: 1, name: 'Bali', image: require('../../assets/images/loc1.png') },
-                  { id: 2, name: 'Jakarta', image: require('../../assets/images/loc2.png') },
-                  { id: 3, name: 'Yogyakarta', image: require('../../assets/images/loc3.png') },
-                  { id: 4, name: 'Semarang', image: require('../../assets/images/loc4.png') },
-                ]}
-              />
-            )}
-
-            {/* Top Estate Owners - Show only when filter is 'All' */}
+            {featuredProperties.length > 0 && <FeaturedSection />}
+            
+            {popularProperties.length > 0 && <PopularSection />}
+            
+            {activeFilter === 'All' && <TopLocations locations={LOCATION_DATA} />}
+            
             {activeFilter === 'All' && <TopEstateOwners />}
-
-            {/* Top Estate Grid - Show all filtered properties */}
+            
             {topProperties.length > 0 && (
-              <TopEstateGrid
-                properties={topProperties}
-                favorites={favorites}
-                toggleFavorite={toggleFavorite}
-              />
+              <TopEstateGrid properties={topProperties} />
             )}
           </>
         )}

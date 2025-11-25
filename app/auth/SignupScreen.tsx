@@ -1,3 +1,4 @@
+// urban/app/auth/SignupScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -6,12 +7,10 @@ import {
   Image,
   Pressable,
   StyleSheet,
-  Modal,
   Dimensions,
   StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import VerificationScreen from './VerificationScreen';
@@ -19,18 +18,8 @@ import { useRouter } from 'expo-router';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { Montserrat_400Regular, Montserrat_600SemiBold } from '@expo-google-fonts/montserrat';
 import GradientButton from '../../components/Button/GradientButton';
-
-interface PopupConfig {
-  visible: boolean;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-  buttons: {
-    text: string;
-    onPress: () => void;
-    style?: 'default' | 'cancel' | 'destructive';
-  }[];
-}
+import { authAPI } from '../../services/api.service';
+import { usePopup } from '../../components/context/PopupContext';
 
 export default function SignupScreen() {
   const [agree, setAgree] = useState(false);
@@ -39,14 +28,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-
-  const [popupConfig, setPopupConfig] = useState<PopupConfig>({
-    visible: false,
-    type: 'info',
-    title: '',
-    message: '',
-    buttons: []
-  });
+  const { showWarning, showError } = usePopup();
 
   const [fontsLoaded] = useFonts({
     Montserrat_400Regular,
@@ -55,14 +37,6 @@ export default function SignupScreen() {
     SFPro: require('../../assets/fonts/SFPro-Regular.ttf'),
   });
 
-  // Password validation function - checks all requirements
-  const isValidPassword = (pass: string) => {
-    // Requires: capital letter, lowercase letter, number, symbol, minimum 8 characters
-    const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*#?&]).{8,}$/;
-    return regex.test(pass);
-  };
-
-  // Detailed password validation to show specific errors
   const validatePasswordDetails = (pass: string) => {
     const errors: string[] = [];
     
@@ -85,82 +59,6 @@ export default function SignupScreen() {
     return errors;
   };
 
-  const showPopup = (
-    title: string,
-    message: string,
-    buttons: PopupConfig['buttons'] = [{ text: 'OK', onPress: () => hidePopup() }],
-    type: PopupConfig['type'] = 'info'
-  ) => {
-    setPopupConfig({
-      visible: true,
-      type,
-      title,
-      message,
-      buttons
-    });
-  };
-
-  const hidePopup = () => {
-    setPopupConfig(prev => ({ ...prev, visible: false }));
-  };
-
-  const getPopupIcon = (type: PopupConfig['type']) => {
-    switch (type) {
-      case 'success':
-        return { name: 'checkmark-circle' as const, color: '#4CAF50' };
-      case 'error':
-        return { name: 'close-circle' as const, color: '#f44336' };
-      case 'warning':
-        return { name: 'warning' as const, color: '#ff9800' };
-      case 'info':
-      default:
-        return { name: 'information-circle' as const, color: '#1a73e8' };
-    }
-  };
-
-  const CustomPopup = () => {
-    if (!popupConfig.visible) return null;
-    
-    const icon = getPopupIcon(popupConfig.type);
-    
-    return (
-      <Modal visible={popupConfig.visible} transparent={true} animationType="fade">
-        <View style={styles.popupOverlay}>
-          <View style={styles.popupContainer}>
-            <View style={styles.popupIconContainer}>
-              <Ionicons name={icon.name} size={64} color={icon.color} />
-            </View>
-            <Text style={styles.popupTitle}>{popupConfig.title}</Text>
-            <Text style={styles.popupMessage}>{popupConfig.message}</Text>
-            
-            <View style={styles.popupButtonsContainer}>
-              {popupConfig.buttons.map((button, index) => (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.popupButton,
-                    button.style === 'cancel' && styles.popupCancelButton,
-                    button.style === 'destructive' && styles.popupDestructiveButton,
-                    popupConfig.buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
-                  ]} 
-                  onPress={button.onPress}
-                >
-                  <Text style={[
-                    styles.popupButtonText,
-                    button.style === 'cancel' && styles.popupCancelButtonText,
-                    button.style === 'destructive' && styles.popupDestructiveButtonText
-                  ]}>
-                    {button.text}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   const textStyle = {
     fontFamily: 'Montserrat_400Regular',
     color: '#1a2238',
@@ -169,80 +67,33 @@ export default function SignupScreen() {
   if (!fontsLoaded) return null;
 
   const handleSignup = async () => {
-    // Check if all fields are filled
     if (!email || !password) {
-      showPopup(
-        'Missing Information',
-        'Please enter both email and password.',
-        [{ text: 'OK', onPress: hidePopup }],
-        'warning'
-      );
-      return; // STOP - Don't proceed
+      showWarning('Missing Information', 'Please enter both email and password.');
+      return;
     }
 
-    // Check if terms are agreed
     if (!agree) {
-      showPopup(
-        'Terms Required',
-        'You must agree to the terms and conditions to continue.',
-        [{ text: 'OK', onPress: hidePopup }],
-        'warning'
-      );
-      return; // STOP - Don't proceed
+      showWarning('Terms Required', 'You must agree to the terms and conditions to continue.');
+      return;
     }
 
-    // Validate password requirements
     const passwordErrors = validatePasswordDetails(password);
     if (passwordErrors.length > 0) {
-      showPopup(
-        'Invalid Password',
-        `Password must contain:\n• ${passwordErrors.join('\n• ')}`,
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
-      );
-      return; // STOP - Don't proceed to backend
+      showError('Invalid Password', `Password must contain:\n• ${passwordErrors.join('\n• ')}`);
+      return;
     }
 
-    // Double-check with main validation
-    if (!isValidPassword(password)) {
-      showPopup(
-        'Invalid Password',
-        'Password must be at least 8 characters and include: a capital letter, a lowercase letter, a number, and a symbol (@$!%*#?&).',
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
-      );
-      return; // STOP - Don't proceed to backend
-    }
-
-    // Only proceed to backend if all validations pass
     try {
-      const response = await fetch('http://localhost:5000/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const result = await authAPI.signup(email, password);
 
-      const result = await response.json();
-
-      if (response.ok) {
-        // Only show verification modal if backend accepts
+      if (result.success) {
         setShowVerificationModal(true);
       } else {
-        showPopup(
-          'Signup Failed',
-          result.error || 'Unable to create account. Please try again.',
-          [{ text: 'OK', onPress: hidePopup }],
-          'error'
-        );
+        showError('Signup Failed', result.error || 'Unable to create account. Please try again.');
       }
     } catch (err) {
       console.error(err);
-      showPopup(
-        'Network Error',
-        'Unable to connect to server. Please check your connection and try again.',
-        [{ text: 'OK', onPress: hidePopup }],
-        'error'
-      );
+      showError('Network Error', 'Unable to connect to server. Please check your connection and try again.');
     }
   };
 
@@ -310,7 +161,6 @@ export default function SignupScreen() {
           <Image source={require('../../assets/icons/right.png')} style={styles.lineImage} />
         </View>
 
-        {/* Social Login Buttons */}
         <View style={styles.socialButtons}>
           <Pressable style={styles.socialBtn}>
             <Image source={require('../../assets/icons/apple.png')} style={styles.socialIcon} />
@@ -328,7 +178,6 @@ export default function SignupScreen() {
           </Pressable>
         </View>
 
-        {/* Footer */}
         <View style={styles.footerRow}>
           <Text style={[textStyle, styles.footer]}>
             Already have an account?{' '}
@@ -337,11 +186,8 @@ export default function SignupScreen() {
             </Text>
           </Text>
         </View>
-
-        <CustomPopup />
       </View>
 
-      {/* Verification Modal with Blur Overlay */}
       {showVerificationModal && (
         <View style={styles.blurOverlayContainer}>
           <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
@@ -422,20 +268,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 12,
   },
-  button: {
-    width: '100%',
-    height: 48,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-    fontFamily: 'SFPro',
-  },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -502,82 +334,5 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 1000,
-  },
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  popupContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
-    minWidth: 280,
-    maxWidth: 350,
-  },
-  popupIconContainer: {
-    marginBottom: 16,
-  },
-  popupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a2238',
-    marginBottom: 12,
-    textAlign: 'center',
-    fontFamily: 'BebasNeue_400Regular',
-    letterSpacing: 1,
-  },
-  popupMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  popupButtonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-  },
-  popupButton: {
-    backgroundColor: '#000000',
-    paddingVertical: 14,
-    paddingHorizontal: 36,
-    borderRadius: 8,
-    minWidth: 120,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  popupButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    textAlign: 'center',
-    fontFamily: 'Montserrat_400Regular',
-    letterSpacing: 0.5,
-  },
-  popupCancelButton: {
-    backgroundColor: '#f3f3f3',
-  },
-  popupCancelButtonText: {
-    color: '#666',
-  },
-  popupDestructiveButton: {
-    backgroundColor: '#f44336',
-  },
-  popupDestructiveButtonText: {
-    color: '#fff',
   },
 });
