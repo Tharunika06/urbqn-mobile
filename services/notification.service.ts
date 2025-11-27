@@ -42,9 +42,14 @@ class NotificationService {
     type?: string
   ): Promise<NotificationResponse> {
     try {
+      console.log('📖 Fetching notifications for user:', userId);
+      
+      // Updated to use new endpoint: /notifications/:userId/notifications
       const url = type
-        ? `${this.baseUrl}/api/notifications/${userId}?type=${type}`
-        : `${this.baseUrl}/api/notifications/${userId}`;
+        ? `${this.baseUrl}/notifications/${userId}/notifications?type=${type}`
+        : `${this.baseUrl}/notifications/${userId}/notifications`;
+
+      console.log('🔗 Request URL:', url);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -53,8 +58,19 @@ class NotificationService {
         },
       });
 
+      console.log('📊 Response Status:', response.status);
+
+      if (response.status === 404) {
+        console.log('ℹ️ No notifications endpoint or no notifications found');
+        return {
+          success: true,
+          notifications: [],
+        };
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Fetch notifications error:', errorData);
         return {
           success: false,
           notifications: [],
@@ -63,12 +79,14 @@ class NotificationService {
       }
 
       const data = await response.json();
+      console.log(`✅ Fetched ${data.notifications?.length || 0} notifications`);
+      
       return {
         success: true,
-        notifications: data.notifications || [],
+        notifications: data.notifications || data || [],
       };
     } catch (error: any) {
-      console.error('Fetch notifications error:', error);
+      console.error('❌ Fetch notifications error:', error);
       return {
         success: false,
         notifications: [],
@@ -82,8 +100,11 @@ class NotificationService {
    */
   async getUnreadCount(userId: string): Promise<number> {
     try {
+      console.log('🔢 Getting unread count for user:', userId);
+      
+      // Updated to use new endpoint: /notifications/:userId/unread-count
       const response = await fetch(
-        `${this.baseUrl}/api/notifications/${userId}/unread-count`,
+        `${this.baseUrl}/notifications/${userId}/unread-count`,
         {
           method: 'GET',
           headers: {
@@ -92,15 +113,21 @@ class NotificationService {
         }
       );
 
+      if (response.status === 404) {
+        console.log('ℹ️ Unread count endpoint not available');
+        return 0;
+      }
+
       if (!response.ok) {
-        console.error('Failed to fetch unread count');
+        console.error('⚠️ Failed to fetch unread count:', response.status);
         return 0;
       }
 
       const data = await response.json();
+      console.log(`✅ Unread count: ${data.count || 0}`);
       return data.count || 0;
     } catch (error) {
-      console.error('Get unread count error:', error);
+      console.error('❌ Get unread count error:', error);
       return 0;
     }
   }
@@ -113,8 +140,10 @@ class NotificationService {
     userId: string
   ): Promise<NotificationActionResponse> {
     try {
+      console.log('✅ Marking notification as read:', notificationId);
+      
       const response = await fetch(
-        `${this.baseUrl}/api/notifications/${notificationId}/read`,
+        `${this.baseUrl}/notifications/${notificationId}/read`,
         {
           method: 'PATCH',
           headers: {
@@ -132,9 +161,10 @@ class NotificationService {
         };
       }
 
+      console.log('✅ Notification marked as read');
       return { success: true };
     } catch (error: any) {
-      console.error('Mark as read error:', error);
+      console.error('❌ Mark as read error:', error);
       return {
         success: false,
         error: error.message || 'Network error',
@@ -147,8 +177,11 @@ class NotificationService {
    */
   async markAllAsRead(userId: string): Promise<NotificationActionResponse> {
     try {
+      console.log('✅ Marking all as read for user:', userId);
+      
+      // Updated to use new endpoint: /notifications/:userId/read-all
       const response = await fetch(
-        `${this.baseUrl}/api/notifications/${userId}/read-all`,
+        `${this.baseUrl}/notifications/${userId}/read-all`,
         {
           method: 'PATCH',
           headers: {
@@ -165,9 +198,10 @@ class NotificationService {
         };
       }
 
+      console.log('✅ All notifications marked as read');
       return { success: true };
     } catch (error: any) {
-      console.error('Mark all as read error:', error);
+      console.error('❌ Mark all as read error:', error);
       return {
         success: false,
         error: error.message || 'Network error',
@@ -183,10 +217,13 @@ class NotificationService {
     userId: string
   ): Promise<NotificationActionResponse> {
     try {
+      console.log('🗑️ Deleting notification:', notificationId, 'for user:', userId);
+      
+      // Use the mobile soft-delete endpoint
       const response = await fetch(
-        `${this.baseUrl}/api/notifications/${notificationId}`,
+        `${this.baseUrl}/notifications/mobile/${notificationId}/delete-for-user`,
         {
-          method: 'DELETE',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -202,9 +239,10 @@ class NotificationService {
         };
       }
 
+      console.log('✅ Notification deleted');
       return { success: true };
     } catch (error: any) {
-      console.error('Delete notification error:', error);
+      console.error('❌ Delete notification error:', error);
       return {
         success: false,
         error: error.message || 'Network error',
@@ -219,8 +257,11 @@ class NotificationService {
     userId: string
   ): Promise<NotificationActionResponse> {
     try {
+      console.log('🧹 Clearing all notifications for user:', userId);
+      
+      // Updated to use new endpoint: /notifications/:userId/clear-all
       const response = await fetch(
-        `${this.baseUrl}/api/notifications/${userId}/clear-all`,
+        `${this.baseUrl}/notifications/${userId}/clear-all`,
         {
           method: 'DELETE',
           headers: {
@@ -237,9 +278,10 @@ class NotificationService {
         };
       }
 
+      console.log('✅ All notifications cleared');
       return { success: true };
     } catch (error: any) {
-      console.error('Clear all notifications error:', error);
+      console.error('❌ Clear all notifications error:', error);
       return {
         success: false,
         error: error.message || 'Network error',

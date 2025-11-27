@@ -296,32 +296,89 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
     }
 
     try {
+      console.log(' Starting payment process...');
+      console.log(` Amount: ₹${price}`);
+      
+      // Step 1: Create payment intent
       const { clientSecret } = await createPaymentIntent(price);
+      console.log('Payment intent created');
+      console.log(' Client Secret format check:', clientSecret?.substring(0, 20) + '...');
 
+      // Validate client secret format
+      if (!clientSecret || !clientSecret.startsWith('pi_')) {
+        throw new Error('Invalid client secret received from server');
+      }
+
+      // Step 2: Initialize payment sheet
+      console.log('🔧 Initializing payment sheet...');
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'RealEstate App Inc.',
         paymentIntentClientSecret: clientSecret,
         returnURL: 'your-app://stripe-redirect',
+        // Add default billing details for better UX
+        defaultBillingDetails: {
+          name: userName.trim(),
+          email: userEmail,
+          phone: userPhone.trim(),
+        },
+        // Optional: Add appearance customization
+        appearance: {
+          colors: {
+            primary: '#1a73e8',
+          },
+        },
       });
       
       if (initError) {
+        console.error(' Payment sheet init error:', initError);
         throw new Error(`Payment sheet initialization failed: ${initError.message}`);
       }
 
+      console.log(' Payment sheet initialized');
+
+      // Step 3: Present payment sheet
+      console.log(' Presenting payment sheet...');
       const { error: paymentError } = await presentPaymentSheet();
+      
       if (paymentError) {
+        console.error(' Payment error:', paymentError);
+        
         if (paymentError.code === 'Canceled') {
+          console.log(' Payment canceled by user');
           setShowCancelPopup(true);
           setIsProcessing(false);
           return;
         }
+        
+        // Handle specific error codes
+        if (paymentError.code === 'Failed') {
+          throw new Error('Payment failed. Please check your card details and try again.');
+        }
+        
         throw new Error(`Payment failed: ${paymentError.message}`);
       }
 
-      // Save transaction details
-      const transactionId = clientSecret.split('_secret')[0];
+      console.log(' Payment successful!');
+
+      // Step 4: Extract transaction ID safely
+      let transactionId: string;
+      try {
+        // Client secret format: pi_xxxxx_secret_yyyyy
+        const parts = clientSecret.split('_secret');
+        if (parts.length < 1 || !parts[0].startsWith('pi_')) {
+          throw new Error('Invalid client secret format');
+        }
+        transactionId = parts[0];
+        console.log(' Transaction ID:', transactionId);
+      } catch (error) {
+        console.error(' Could not extract transaction ID, using timestamp fallback');
+        transactionId = `txn_${Date.now()}`;
+      }
+
       const purchaseType = displayMode === 'rent' ? 'rent' : 'buy';
       
+      // Step 5: Save transaction details
+      console.log(' Saving transaction details...');
       const transactionData = {
         id: transactionId,
         customerName: userName.trim(),
@@ -330,25 +387,47 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
         paymentMethod: 'card',
         amount: price,
         currency: 'INR',
-        property: { id: property._id, name: property.name },
+        property: { 
+          id: property._id, 
+          name: property.name 
+        },
         ownerName: property.ownerName,
         purchaseType: purchaseType,
         timestamp: new Date().toISOString(),
+        clientSecret: clientSecret, // Store for reference
       };
       
-      await saveTransactionDetails(transactionData);
+      try {
+        await saveTransactionDetails(transactionData);
+        console.log(' Transaction details saved');
+      } catch (saveError) {
+        console.error(' Failed to save transaction:', saveError);
+        // Don't throw - payment succeeded, just log the error
+      }
       
-      // Save customer info for review tracking
-      await saveCustomerInfoForReview(userName.trim(), userPhone.trim(), userEmail);
+      // Step 6: Save customer info for review tracking
+      try {
+        await saveCustomerInfoForReview(userName.trim(), userPhone.trim(), userEmail);
+        console.log(' Customer info saved');
+      } catch (error) {
+        console.error(' Failed to save customer info:', error);
+      }
       
-      // Save user profile
-      await saveUserProfileData();
-
-      // Mark property as sold locally
-      if (displayMode === 'sale') {
-        setIsPropertySold(true);
+      // Step 7: Save user profile
+      try {
+        await saveUserProfileData();
+        console.log(' User profile saved');
+      } catch (error) {
+        console.error(' Failed to save user profile:', error);
       }
 
+      // Step 8: Mark property as sold locally
+      if (displayMode === 'sale') {
+        setIsPropertySold(true);
+        console.log(' Property marked as sold');
+      }
+
+      // Step 9: Show success message
       showCustom(
         'Payment Successful!',
         `Your ${displayMode === 'rent' ? 'rental' : 'purchase'} of "${property.name}" was completed successfully. Please take a moment to leave a review.`,
@@ -385,8 +464,23 @@ export default function TransactionHandler({ property, displayMode, isValid }: T
       );
 
     } catch (error: any) {
-      console.error('Payment error:', error);
-      showError('Payment Error', error.message || 'An unexpected error occurred during payment.');
+      console.error('❌ Payment process failed:', error);
+      
+      // Show user-friendly error message
+      let errorMessage = 'An unexpected error occurred during payment.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Add more context for specific errors
+      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message?.includes('client secret')) {
+        errorMessage = 'Payment initialization failed. Please try again.';
+      }
+      
+      showError('Payment Error', errorMessage);
     } finally {
       setIsProcessing(false);
     }

@@ -15,7 +15,7 @@ import type {
 
 // ============ API Configuration ============
 const BASE_URL = "http://192.168.0.153:5000/api";
-const NOTIFICATIONS_URL = "http://192.168.0.153:5000/api/notifications";
+const NOTIFICATIONS_URL = `${BASE_URL}/notifications`;
 
 // Configure axios defaults
 axios.defaults.timeout = 10000;
@@ -127,15 +127,34 @@ export const authAPI = {
   },
 
   // Reset Password
-  resetPassword: async (email: string, password: string): Promise<{ 
+   resetPassword: async (
+    email: string, 
+    password: string, 
+    otp: string
+  ): Promise<{ 
     success: boolean; 
     error?: string;
   }> => {
     try {
-      const response = await axios.post(`${BASE_URL}/reset-password`, { email, password });
+      console.log('🔐 Reset Password Request:');
+      console.log('   Email:', email);
+      console.log('   OTP:', otp);
+      console.log('   Password length:', password?.length);
+      console.log('   Request URL:', `${BASE_URL}/reset-password`);
+      
+      const response = await axios.post(`${BASE_URL}/reset-password`, { 
+        email, 
+        password,
+        otp // ✅ NOW INCLUDED
+      });
+      
+      console.log('✅ Password reset successful');
       return { success: true };
     } catch (error: any) {
-      console.error('Reset password error:', error);
+      console.error('❌ Reset password error:', error.response?.data || error.message);
+      console.error('   Status:', error.response?.status);
+      console.error('   Data sent:', { email, passwordLength: password?.length, otp });
+      
       if (error.response) {
         return { 
           success: false, 
@@ -145,6 +164,7 @@ export const authAPI = {
       return { success: false, error: 'Network error. Please try again.' };
     }
   },
+
 };
 
 // ============ Profile APIs ============

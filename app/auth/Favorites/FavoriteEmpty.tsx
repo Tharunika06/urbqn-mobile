@@ -1,26 +1,32 @@
 // app/auth/Favorites/FavoriteEmpty.tsx
-import React from 'react';
-import { View, Text, StyleSheet, Image, StatusBar } from 'react-native';
-import { useFonts } from 'expo-font';  // Import the useFonts hook
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { useFonts } from 'expo-font';
 import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat';
-import AppLoading from 'expo-app-loading'; // Import AppLoading to show while fonts are loading
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
+
 export default function EmptyFavorites() {
   // Load custom fonts
   const [fontsLoaded] = useFonts({
-    'Montserrat_800ExtraBold':Montserrat_800ExtraBold, // Ensure this path is correct
+    'Montserrat_800ExtraBold': Montserrat_800ExtraBold,
   });
- if(!fontsLoaded){
-  return null;
- }
-  // Show loading screen until fonts are loaded
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  // Show nothing until fonts are loaded
   if (!fontsLoaded) {
-    return <AppLoading />;
+    return null;
   }
 
   return (
-  
-      
     <View style={styles.container}>
       <Image
         source={require('../../../assets/images/empty-favorites.png')}
@@ -57,7 +63,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#1e1e1e',
     lineHeight: 42,
-    fontFamily: 'BebasNeue_400Regular', //  Applied Bebas Neue font
+    fontFamily: 'BebasNeue_400Regular',
   },
   progressBar: {
     flexDirection: 'row',
@@ -85,7 +91,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    fontFamily: 'SFPro', // Applied SF Pro font
+    fontFamily: 'SFPro',
   },
   container: {
     flex: 1,
@@ -106,20 +112,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#252B5C',
     textAlign: 'center',
-    fontFamily: 'Montserrat_600SemiBold',  // Ensure this font is loaded
+    fontFamily: 'Montserrat_600SemiBold',
   },
   empText: {
     fontSize: 26,
     color: '#0075FF',
-    fontFamily: 'Montserrat_800ExtraBold',  // Apply the ExtraBold font here
+    fontFamily: 'Montserrat_800ExtraBold',
   },
   subText: {
     fontSize: 11,
-    marginLeft:20,
-    marginRight:10,
+    marginLeft: 20,
+    marginRight: 10,
     color: '#53587A',
     textAlign: 'center',
     marginTop: 8,
-    fontFamily: 'Montserrat_400Regular',  // Ensure this font is loaded
+    fontFamily: 'Montserrat_400Regular',
   }
 });

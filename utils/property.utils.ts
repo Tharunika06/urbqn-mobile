@@ -1,7 +1,7 @@
 // utils/property.utils.ts
 import type { Property, PriceDisplay } from '../types/index';
 
-  import { BASE_URL } from '../../urban/services/api.service';
+  import { BASE_URL } from '../services/api.service';
 
 // ============ Image Helpers ============
 export const getImageSource = (photo: string | any): any => {

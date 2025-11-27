@@ -36,6 +36,11 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // ✅ IMPROVED: Two separate OTP states for clarity
+  const [signupOtp, setSignupOtp] = useState(''); // For signup verification
+  const [resetOtp, setResetOtp] = useState(''); // For password reset
+  
   const [isFromSignup, setIsFromSignup] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -95,19 +100,16 @@ export default function LoginScreen() {
       const result = await authAPI.login(email, password);
 
       if (result.success && result.data) {
-        // Store the authentication token
         if (result.data.token) {
           await AsyncStorage.setItem('authToken', result.data.token);
         } else {
           console.warn('No token received from server');
         }
 
-        // Store complete user data
         if (result.data.user) {
           await AsyncStorage.setItem('user', JSON.stringify(result.data.user));
         }
 
-        // Handle remember me
         if (rememberMe) {
           await AsyncStorage.setItem('userCredentials', JSON.stringify({ email, password }));
           await AsyncStorage.setItem('rememberMe', 'true');
@@ -118,7 +120,6 @@ export default function LoginScreen() {
 
         setShowSuccessModal(true);
       } else {
-        // Handle specific error cases
         if (result.requiresVerification) {
           showCustom(
             'Email Not Verified',
@@ -128,7 +129,7 @@ export default function LoginScreen() {
               {
                 text: 'Verify Now',
                 onPress: () => {
-                  setIsFromSignup(false);
+                  setIsFromSignup(true); // ✅ This is for signup verification
                   setShowVerification(true);
                 }
               }
@@ -216,7 +217,7 @@ export default function LoginScreen() {
           </View>
           <Pressable
             onPress={() => {
-              setIsFromSignup(false);
+              setIsFromSignup(false); // ✅ This is for password reset
               setShowForgotPassword(true);
             }}
           >
@@ -260,6 +261,7 @@ export default function LoginScreen() {
           </Pressable>
         </View>
 
+        {/* Forgot Password Modal */}
         <Modal transparent animationType="slide" visible={showForgotPassword}>
           <ForgotPasswordScreen
             onClose={() => setShowForgotPassword(false)}
@@ -271,29 +273,51 @@ export default function LoginScreen() {
           />
         </Modal>
 
+        {/* Verification Modal - Used for BOTH signup and password reset */}
         <Modal transparent animationType="slide" visible={showVerification}>
           <VerificationScreen
             email={email}
             isFromSignup={isFromSignup}
             onClose={() => setShowVerification(false)}
-            onContinue={() => {
-              setShowVerification(false);
-              setShowResetPassword(true);
+            onContinue={(otp: string) => {
+              // ✅ IMPROVED: Store OTP in the appropriate state based on flow
+              if (isFromSignup) {
+                // Signup verification - OTP not needed after verification
+                setSignupOtp(otp);
+                setShowVerification(false);
+                // Could navigate to profile creation or show success
+                showCustom(
+                  'Verified!',
+                  'Your email has been verified. You can now log in.',
+                  [{ text: 'OK', onPress: () => {} }],
+                  'success'
+                );
+              } else {
+                // Password reset verification - OTP needed for reset
+                setResetOtp(otp);
+                setShowVerification(false);
+                setShowResetPassword(true);
+              }
             }}
           />
         </Modal>
 
+        {/* Reset Password Modal */}
         <Modal transparent animationType="slide" visible={showResetPassword}>
           <ResetPasswordScreen
             onClose={() => {
               setShowResetPassword(false);
               setEmail('');
               setPassword('');
+              setResetOtp(''); // ✅ Clear reset OTP
+              setSignupOtp(''); // ✅ Clear signup OTP
             }}
             email={email}
+            otp={resetOtp}  // ✅ Pass the reset OTP specifically
           />
         </Modal>
 
+        {/* Success Modal */}
         <Modal transparent animationType="fade" visible={showSuccessModal}>
           <View style={styles.overlay}>
             <View style={styles.successCard}>

@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Montserrat_600SemiBold',
   },
   inactiveTabText: {

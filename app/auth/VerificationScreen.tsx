@@ -20,7 +20,7 @@ import { usePopup } from '../../components/context/PopupContext';
 
 interface VerificationProps {
   onClose: () => void;
-  onContinue: () => void;
+  onContinue: (otp: string) => void;  // ✅ CHANGED: Now accepts OTP parameter
   isFromSignup?: boolean;
   email: string;
 }
@@ -69,7 +69,8 @@ export default function VerificationScreen({
         : await authAPI.verifyResetOTP(email, otp);
 
       if (result.success) {
-        showSuccess('Success', 'OTP verified successfully', onContinue);
+        // ✅ CHANGED: Pass OTP to onContinue callback
+        showSuccess('Success', 'OTP verified successfully', () => onContinue(otp));
       } else {
         showError('Verification Failed', result.error || 'Invalid or expired OTP');
       }

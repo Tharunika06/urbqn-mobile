@@ -1,5 +1,6 @@
 // urban/app/auth/ResetPasswordScreen.tsx
 // ============================================================================
+// urban/app/auth/ResetPasswordScreen.tsx
 
 import React, { useState } from 'react';
 import {
@@ -22,9 +23,10 @@ import { usePopup } from '../../components/context/PopupContext';
 interface Props {
   onClose: () => void;
   email: string;
+  otp: string; // ✅ ADD THIS - OTP should be passed from parent
 }
 
-export default function ResetPasswordScreen({ onClose, email }: Props) {
+export default function ResetPasswordScreen({ onClose, email, otp }: Props) {
   const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -50,7 +52,8 @@ export default function ResetPasswordScreen({ onClose, email }: Props) {
     }
 
     try {
-      const result = await authAPI.resetPassword(email, newPassword);
+      // ✅ Pass all three parameters in correct order
+      const result = await authAPI.resetPassword(email, newPassword, otp);
 
       if (result.success) {
         showSuccess('Success', 'Password has been reset successfully!', () => {
